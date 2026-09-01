@@ -1,0 +1,1512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE CLIMB — The Woman at the Top of the World</title>
+<meta name="description" content="A pixel-art reading of Matthew J. Kirby's short story 'The Woman at the Top of the World'. Student commentary on grit and determination.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet">
+<style>
+/* ------------------------------------------------------------------
+   THE CLIMB — pixel-art companion to "The Woman at the Top of the World"
+   Hard rules: no border-radius, no blur, no smooth gradients.
+   Everything snaps to a logical pixel grid.
+   ------------------------------------------------------------------ */
+
+:root{
+  /* ---- locked palette ---- */
+  --ink:        #14101c;
+  --ink-soft:   #241d33;
+  --shadow:     #2a2436;
+
+  --dust-0:#f7e6c0; --dust-1:#e8c98d; --dust-2:#c99b58; --dust-3:#8a5f38;
+  --gran-0:#d5dde5; --gran-1:#9aa7b5; --gran-2:#66717f; --gran-3:#3c4552;
+  --strm-0:#cfd8ff; --strm-1:#6a72b8; --strm-2:#3b3a6e; --strm-3:#1e1c3a;
+
+  --gold:   #ffd257;
+  --gold-d: #c99a22;
+  --rain:   #8fe3ff;
+  --blood:  #b53a3a;
+  --grass:  #5aa64f;
+  --paper:  #f4ecd8;
+
+  /* ---- runtime, driven by scroll ---- */
+  --zone-ink:   #4a3418;
+  --zone-panel: #f7e6c0;
+  --zone-edge:  #8a5f38;
+  --zone-accent:#c99b58;
+
+  --u: 4px;                    /* one logical pixel */
+  --frame: calc(var(--u) * 1);
+}
+
+@media (max-width: 720px){ :root{ --u:3px; } }
+
+*{ box-sizing:border-box; }
+
+html{ scroll-behavior:smooth; }
+@media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto; } }
+
+body{
+  margin:0;
+  background:var(--strm-3);
+  color:var(--ink);
+  font-family:"Pixelify Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow-x:hidden;
+  -webkit-font-smoothing:none;
+}
+
+img, canvas{ image-rendering: pixelated; image-rendering: crisp-edges; }
+svg{ shape-rendering: crispEdges; }
+
+/* ---------- fixed backdrop ---------- */
+#sky{
+  position:fixed; inset:0; z-index:0;
+  width:100%; height:100%;
+  display:block;
+  pointer-events:none;
+}
+#sky-fallback{
+  position:fixed; inset:0; z-index:0;
+  background:var(--dust-1);
+  pointer-events:none;
+}
+
+#crt{
+  position:fixed; inset:0; z-index:90; pointer-events:none;
+  background:repeating-linear-gradient(
+    to bottom,
+    rgba(0,0,0,.16) 0 1px,
+    rgba(0,0,0,0)  1px 3px
+  );
+  opacity:1;
+}
+body.no-crt #crt{ display:none; }
+
+/* ---------- HUD ---------- */
+#hud{
+  position:fixed; z-index:80;
+  left:calc(var(--u)*4); top:calc(var(--u)*4);
+  width:calc(var(--u)*48);
+  background:var(--ink);
+  color:var(--paper);
+  padding:calc(var(--u)*2);
+  font-family:"Press Start 2P", "Pixelify Sans", monospace;
+  font-size:calc(var(--u)*1.6);
+  line-height:1.9;
+  box-shadow:
+     0 0 0 var(--u) var(--ink),
+     0 0 0 calc(var(--u)*2) var(--zone-edge),
+     calc(var(--u)*2) calc(var(--u)*2) 0 calc(var(--u)*2) rgba(0,0,0,.35);
+}
+.hud-row{ display:flex; justify-content:space-between; gap:var(--u); align-items:center; }
+.hud-key{ color:var(--zone-accent); }
+.hud-val{ color:var(--paper); }
+.meter{
+  height:calc(var(--u)*3);
+  margin:calc(var(--u)*1) 0 calc(var(--u)*2);
+  background:var(--shadow);
+  box-shadow:0 0 0 var(--u) var(--ink-soft);
+  position:relative; overflow:hidden;
+}
+.meter > i{
+  display:block; height:100%; width:100%;
+  background:var(--gold);
+  transform-origin:left center;
+  transition:transform .35s steps(8, end), background-color .35s steps(4,end);
+}
+.meter.body > i{ background:var(--blood); }
+.meter.body.healed > i{ background:var(--grass); }
+#hud .stage-name{
+  display:block; margin-top:var(--u);
+  color:var(--paper); font-size:calc(var(--u)*1.5);
+  line-height:1.8; word-break:break-word;
+}
+#hud .hint{ display:block; margin-top:calc(var(--u)*2); color:var(--gran-1); font-size:calc(var(--u)*1.2); }
+
+#crt-toggle{
+  position:fixed; z-index:81;
+  right:calc(var(--u)*4); top:calc(var(--u)*4);
+  font-family:"Press Start 2P", monospace;
+  font-size:calc(var(--u)*1.5);
+  color:var(--paper); background:var(--ink);
+  border:0; padding:calc(var(--u)*2);
+  cursor:pointer;
+  box-shadow:0 0 0 var(--u) var(--ink), 0 0 0 calc(var(--u)*2) var(--zone-edge);
+}
+#crt-toggle:hover{ color:var(--gold); }
+
+@media (max-width: 900px){
+  #hud{
+    left:0; top:0; width:100%;
+    display:flex; gap:calc(var(--u)*3); align-items:center;
+    padding:calc(var(--u)*2) calc(var(--u)*3);
+    box-shadow:0 calc(var(--u)*1) 0 0 var(--zone-edge);
+  }
+  #hud .block{ flex:0 0 auto; min-width:calc(var(--u)*28); }
+  #hud .stage-name{ flex:1 1 auto; margin-top:0; font-size:calc(var(--u)*1.3); }
+  #hud .hint{ display:none; }
+  .meter{ margin:calc(var(--u)*1) 0 0; }
+  #crt-toggle{ display:none; }
+}
+
+/* ---------- layout ---------- */
+main{ position:relative; z-index:10; }
+
+.stage{
+  min-height:100vh;
+  display:flex; align-items:center; justify-content:center;
+  padding:calc(var(--u)*14) calc(var(--u)*5);
+}
+@media (max-width:900px){ .stage{ padding:calc(var(--u)*22) calc(var(--u)*4) calc(var(--u)*10); } }
+
+.stage-inner{
+  width:100%; max-width:1180px;
+  display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:calc(var(--u)*8); align-items:center;
+}
+.stage:nth-child(even) .stage-inner{ direction:rtl; }
+.stage:nth-child(even) .stage-inner > *{ direction:ltr; }
+@media (max-width:1000px){
+  .stage-inner, .stage:nth-child(even) .stage-inner{ grid-template-columns:1fr; direction:ltr; gap:calc(var(--u)*5); }
+}
+
+/* ---------- the screen (canvas frame) ---------- */
+.screen{
+  background:var(--ink);
+  padding:calc(var(--u)*2);
+  box-shadow:
+     0 0 0 var(--u) var(--zone-edge),
+     0 0 0 calc(var(--u)*2) var(--ink),
+     calc(var(--u)*3) calc(var(--u)*3) 0 calc(var(--u)*2) rgba(0,0,0,.4);
+  align-self:center; justify-self:center;
+  max-width:100%; min-width:0;
+}
+.screen canvas{ display:block; max-width:100%; height:auto; background:var(--gran-3); }
+/* With JS off the canvases can never be painted, so drop the empty art frames
+   entirely rather than showing a column of black boxes. The essay still reads
+   in full: every stage's quotes and commentary are plain HTML. */
+.no-js .screen{ display:none; }
+.no-js .stage-inner{ grid-template-columns:1fr !important; max-width:760px; }
+
+/* ---------- text panel ---------- */
+.panel{
+  background:var(--zone-panel);
+  padding:calc(var(--u)*6);
+  box-shadow:
+     0 0 0 var(--u) var(--ink),
+     0 0 0 calc(var(--u)*2) var(--zone-edge),
+     calc(var(--u)*3) calc(var(--u)*3) 0 calc(var(--u)*2) rgba(0,0,0,.4);
+}
+@media (max-width:600px){ .panel{ padding:calc(var(--u)*4); } }
+
+.level-tag{
+  display:inline-block;
+  font-family:"Press Start 2P", monospace;
+  font-size:calc(var(--u)*1.8);
+  line-height:1.6;
+  color:var(--paper); background:var(--ink);
+  padding:calc(var(--u)*2) calc(var(--u)*2.5);
+  margin:0 0 calc(var(--u)*5);
+}
+.stage.pivot .level-tag{ color:var(--ink); background:var(--gold); }
+
+blockquote{
+  margin:0 0 calc(var(--u)*5);
+  padding-left:calc(var(--u)*4);
+  border-left:calc(var(--u)*2) solid var(--zone-edge);
+  font-size:clamp(1.15rem, 2.2vw, 1.6rem);
+  line-height:1.55;
+  color:var(--zone-ink);
+  font-weight:600;
+}
+blockquote + blockquote{ margin-top:calc(var(--u)*-2); }
+blockquote cite{
+  display:block; margin-top:calc(var(--u)*2);
+  font-family:"Press Start 2P", monospace;
+  font-size:calc(var(--u)*1.4); font-style:normal;
+  color:var(--zone-edge); letter-spacing:.02em;
+}
+
+.commentary{
+  margin:0;
+  font-family:ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size:clamp(.98rem, 1.35vw, 1.08rem);
+  line-height:1.75;
+  color:var(--ink);
+}
+.commentary + .commentary{ margin-top:1em; }
+.commentary strong{ color:var(--zone-ink); }
+
+/* ---------- title screen ---------- */
+#s0 .stage-inner{ grid-template-columns:1fr; max-width:920px; text-align:center; }
+#s0 .panel{ background:var(--ink); color:var(--paper); }
+.title-main{
+  font-family:"Press Start 2P", monospace;
+  font-size:clamp(1.7rem, 7vw, 4rem);
+  line-height:1.25; margin:0;
+  color:var(--gold);
+  text-shadow:
+     var(--u) var(--u) 0 var(--dust-3),
+     calc(var(--u)*2) calc(var(--u)*2) 0 var(--ink);
+}
+.title-sub{
+  font-family:"Press Start 2P", monospace;
+  font-size:clamp(.62rem, 1.7vw, .82rem);
+  line-height:2.2; color:var(--gran-0);
+  margin:calc(var(--u)*6) 0 0;
+}
+.title-epigraph{
+  margin:calc(var(--u)*7) auto 0; max-width:34ch;
+  font-size:clamp(1.05rem,2.2vw,1.35rem); color:var(--paper);
+}
+.press-start{
+  margin-top:calc(var(--u)*8);
+  font-family:"Press Start 2P", monospace;
+  font-size:clamp(.6rem,1.6vw,.8rem);
+  color:var(--gold);
+  animation:blink 1.1s steps(1,end) infinite;
+}
+@keyframes blink{ 0%,49%{opacity:1} 50%,100%{opacity:0} }
+@media (prefers-reduced-motion: reduce){ .press-start{ animation:none; } }
+
+/* ---------- results screen ---------- */
+#s12 .stage-inner{ grid-template-columns:1fr; max-width:940px; }
+.results-title{
+  font-family:"Press Start 2P", monospace;
+  font-size:clamp(1rem,3vw,1.7rem); line-height:1.5;
+  color:var(--gold); background:var(--ink);
+  margin:0 0 calc(var(--u)*6); padding:calc(var(--u)*4);
+  text-align:center;
+}
+.tally{ list-style:none; margin:0 0 calc(var(--u)*7); padding:0; }
+.tally li{
+  display:grid; grid-template-columns:calc(var(--u)*22) 1fr;
+  gap:calc(var(--u)*3); align-items:baseline;
+  padding:calc(var(--u)*2.5) 0;
+  border-bottom:var(--u) solid var(--dust-2);
+  font-size:clamp(.95rem,1.7vw,1.12rem);
+  line-height:1.5;
+}
+.tally li b{
+  font-family:"Press Start 2P", monospace;
+  font-size:calc(var(--u)*1.4); color:var(--dust-3);
+  font-weight:400; letter-spacing:.02em;
+}
+@media (max-width:640px){
+  .tally li{ grid-template-columns:1fr; gap:calc(var(--u)*1); }
+}
+.thesis{
+  background:var(--ink); color:var(--paper);
+  padding:calc(var(--u)*6);
+  font-size:clamp(1.05rem,2.1vw,1.35rem); line-height:1.6;
+}
+.thesis p{ margin:0 0 1em; }
+.thesis p:last-child{ margin:0; color:var(--gold); }
+
+/* ---------- footer ---------- */
+footer{
+  position:relative; z-index:10;
+  background:var(--ink); color:var(--gran-1);
+  padding:calc(var(--u)*8) calc(var(--u)*5);
+  text-align:center;
+  font-family:ui-sans-serif, system-ui, sans-serif;
+  font-size:.85rem; line-height:1.9;
+}
+footer strong{ color:var(--paper); }
+
+/* ---------- reveal ---------- */
+@keyframes pop{ from{ transform:translateY(calc(var(--u)*5)); } to{ transform:none; } }
+
+/* Transform only, never opacity: if the animation is throttled or frozen
+   (background tab, reduced motion, dead JS) the essay is still fully readable.
+   A reveal must never be able to hide the content it is revealing. */
+.js-reveal .stage.seen .screen{ animation:pop .28s steps(5,end) both; }
+.js-reveal .stage.seen .panel { animation:pop .28s steps(5,end) .05s both; }
+@media (prefers-reduced-motion: reduce){
+  .js-reveal .stage .panel, .js-reveal .stage .screen{ animation:none; }
+}
+</style>
+</head>
+<body class="no-js">
+
+<div id="sky-fallback"></div>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div id="crt" aria-hidden="true"></div>
+
+<header id="hud" aria-hidden="true">
+  <div class="block">
+    <div class="hud-row"><span class="hud-key">ALT</span><span class="hud-val" id="hud-alt">0 FT</span></div>
+    <div class="meter alt"><i id="meter-alt" style="transform:scaleX(0)"></i></div>
+  </div>
+  <div class="block">
+    <div class="hud-row"><span class="hud-key">BODY</span><span class="hud-val" id="hud-body">100%</span></div>
+    <div class="meter body" id="meter-body-wrap"><i id="meter-body"></i></div>
+  </div>
+  <span class="stage-name" id="hud-stage">TITLE SCREEN</span>
+  <span class="hint">SCROLL TO CLIMB</span>
+</header>
+
+<button id="crt-toggle" type="button">CRT: ON</button>
+
+<main>
+
+<!-- ============ 0 · TITLE ============ -->
+<section class="stage" id="s0" data-alt="0" data-body="100" data-name="TITLE SCREEN" data-scene="title">
+  <div class="stage-inner">
+    <div class="screen"><canvas width="192" height="108" data-scene="title" aria-label="Pixel art: a lone figure with a crutch at the foot of a vast mountain."></canvas></div>
+    <div class="panel">
+      <h1 class="title-main">THE CLIMB</h1>
+      <p class="title-sub">
+        A READING OF &ldquo;THE WOMAN AT THE TOP OF THE WORLD&rdquo;<br>
+        STORY BY MATTHEW J. KIRBY<br>
+        REFLECTION BY JUDE
+      </p>
+      <p class="title-epigraph">&ldquo;the irony of Able&rsquo;s name was not lost on him&rdquo;</p>
+      <p class="press-start">&#9660; SCROLL TO CLIMB</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 1 · THE VILLAGE ============ -->
+<section class="stage" id="s1" data-alt="0" data-body="100" data-name="1-1 THE VILLAGE" data-scene="village">
+  <div class="stage-inner">
+    <div class="screen"><canvas width="192" height="108" data-scene="village" aria-label="Pixel art: village cottages under a dry sky, a row of boys walking to the fields, and one boy with a crutch standing apart."></canvas></div>
+    <div class="panel">
+      <p class="level-tag">LEVEL 1-1 &middot; THE VILLAGE</p>
+      <blockquote>&ldquo;But all his name did was remind Able of what he wasn&rsquo;t.&rdquo;<cite>MATTHEW J. KIRBY</cite></blockquote>
+      <p class="commentary">Able is named for the one thing he has never been allowed to be. Kirby stacks the odds before the story has even moved: a leg like &ldquo;a little twig&rdquo;, a village of boys who went out to the fields years ago, and a name that works like an insult he has to answer to.</p>
+      <p class="commentary">His parents &ldquo;had used his name to love him, anyway.&rdquo; The village uses it to measure what he isn&rsquo;t &mdash; and on the first page, the reader is quietly invited to agree with the village.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2 · HIS MOTHER ============ -->
+<section class="stage" id="s2" data-alt="0" data-body="100" data-name="1-2 HIS MOTHER" data-scene="mother">
+  <div class="stage-inner">
+    <div class="screen"><canvas width="192" height="108" data-scene="mother" aria-label="Pixel art: a cottage interior with a fire and a heavy black kettle, a mother and her son."></canvas></div>
+    <div class="panel">
+      <p class="level-tag">LEVEL 1-2 &middot; HIS MOTHER</p>
+      <blockquote>&ldquo;Even were you with them, there&rsquo;d be no work for you. This drought has made sure of that.&rdquo;<cite>ABLE&rsquo;S MOTHER</cite></blockquote>
+      <p class="commentary">This is the kindest sentence in the story and it still closes a door. She has just thanked him for his strong hands and arms &mdash; the parts of him that work &mdash; and then, gently, told him it wouldn&rsquo;t matter anyway.</p>
+      <p class="commentary">Two impossibilities are now stacked on one boy: <strong>his body, and the land.</strong> Neither is his fault, and neither can be argued with.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3 · THE DECISION ============ -->
+<section class="stage" id="s3" data-alt="40" data-body="98" data-name="1-3 THE DECISION" data-scene="decision">
+  <div class="stage-inner">
+    <div class="screen"><canvas width="192" height="108" data-scene="decision" aria-label="Pixel art: night. Three grey cairns in the foreground, the mountain rising behind them."></canvas></div>
+    <div class="panel">
+      <p class="level-tag">LEVEL 1-3 &middot; THE DECISION</p>
+      <blockquote>&ldquo;Three fools have gone up the mountain. None reached the peak, and all three came back empty-handed.&rdquo;<cite>ABLE&rsquo;S FATHER</cite></blockquote>
+      <p class="commentary">Whole men tried and failed. That is the measure Able is handed the night before he goes &mdash; not encouragement, but proof that it can&rsquo;t be done by people more able than him.</p>
+      <p class="commentary">He goes anyway. Kirby writes that &ldquo;there were times when belief in a story was no longer a choice, and everyone became a fool.&rdquo; This is the exact moment hope stops being the reason and <strong>grit</strong> takes over.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4 · THE GAUNTLET ============ -->
+<section class="stage" id="s4" data-alt="90" data-body="94" data-name="1-4 THE GAUNTLET" data-scene="gauntlet">
+  <div class="stage-inner">
+    <div class="screen"><canvas width="192" height="108" data-scene="gauntlet" aria-label="Pixel art: villagers lining a street, shouting words, as a boy with a crutch walks through them."></canvas></div>
+    <div class="panel">
+      <p class="level-tag">LEVEL 1-4 &middot; THE GAUNTLET</p>
+      <blockquote>&ldquo;Somehow, this is your fault. Curses beget curses.&rdquo;<cite>A MAN IN THE VILLAGE</cite></blockquote>
+      <blockquote>&ldquo;But all that fell on Able&rsquo;s back were words.&rdquo;<cite>MATTHEW J. KIRBY</cite></blockquote>
+      <p class="commentary">Before the mountain there is the village. He could have taken another road, but it would cost time and distance he cannot spare &mdash; so he walks straight through the hatred with his crutch in full view.</p>
+      <p class="commentary">That second line is the first real evidence of what he is. The shouting lands. It just doesn&rsquo;t stop him.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5 · THE FOOTHILLS ============ -->
+<section class="stage" id="s5" data-alt="900" data-body="70" data-name="2-1 THE FOOTHILLS" data-scene="foothills">
+  <div class="stage-inner">
+    <div class="screen"><canvas width="192" height="108" data-scene="foothills" aria-label="Pixel art: cracked dead pasture, a stone fence, a sheep skull, dried pines, and a small figure climbing."></canvas></div>
+    <div class="panel">
+      <p class="level-tag">LEVEL 2-1 &middot; THE FOOTHILLS</p>
+      <blockquote>&ldquo;a dull ache of protest at being asked to do more than it was ever meant to&rdquo;<cite>ABLE&rsquo;S LEG</cite></blockquote>
+      <blockquote>&ldquo;But he climbed. And climbed.&rdquo;<cite>MATTHEW J. KIRBY</cite></blockquote>
+      <p class="commentary">Kirby gives the endurance its own paragraph, two words at a time, because that is how endurance actually happens &mdash; not in one heroic burst but in repetitions that stop being interesting.</p>
+      <p class="commentary">The hip is the worst of it: bones that &ldquo;had never fully joined&rdquo;, grinding against each other with every step. Each step becomes &ldquo;a decision he had to make and from which he had to rest.&rdquo;</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6 · SECOND DAWN ============ -->
+<section class="stage" id="s6" data-alt="2400" data-body="52" data-name="2-2 SECOND DAWN" data-scene="dawn">
+  <div class="stage-inner">
+    <div class="screen"><canvas width="192" height="108" data-scene="dawn" aria-label="Pixel art: mist between pine trees at dawn, a ten-point hart standing on the mountainside."></canvas></div>
+    <div class="panel">
+      <p class="level-tag">LEVEL 2-2 &middot; SECOND DAWN</p>
+      <blockquote>&ldquo;he struggled to his feet&rdquo; &hellip; &ldquo;something as small as his leg, something that had amounted to so little, could so overwhelm his body and mind&rdquo;<cite>MATTHEW J. KIRBY</cite></blockquote>
+      <p class="commentary">The mountain has already taken a night from him. He has no food and no water &mdash; he sucks dew off &ldquo;bitter, dusty pine needles&rdquo; &mdash; and he wakes into pain before the sun is up.</p>
+      <p class="commentary">Then he grabs his crutch and turns uphill. Grit here isn&rsquo;t strength; it is <strong>the willingness to start again in worse condition than yesterday.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7 · THE GRANITE WALL ============ -->
+<section class="stage pivot" id="s7" data-alt="3800" data-body="34" data-name="2-3 THE GRANITE WALL" data-scene="wall">
+  <div class="stage-inner">
+    <div class="screen"><canvas width="192" height="108" data-scene="wall" aria-label="Pixel art: a sheer granite cliff. A boy climbs it with his arms while his wooden crutch falls away below him."></canvas></div>
+    <div class="panel">
+      <p class="level-tag">LEVEL 2-3 &middot; THE GRANITE WALL</p>
+      <blockquote>&ldquo;Able looked at his crutch, which his father had carved for him, and then tossed it away. Then he took hold of the mountain by the folds in its skin and climbed.&rdquo;<cite>MATTHEW J. KIRBY</cite></blockquote>
+      <p class="commentary">This is the hinge of the whole story. The crutch is the only object in it made out of love &mdash; his father carved it &mdash; and to go any higher he has to throw it off a mountain.</p>
+      <p class="commentary">Kirby chooses the word <em>skin</em>: the wall that defeated everyone before him becomes something living, something that can be held. From here Able climbs on arms alone, a hundred feet up, until &ldquo;they quivered dangerously.&rdquo;</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8 · HIS LIFE AT HIS FINGERTIPS ============ -->
+<section class="stage" id="s8" data-alt="5200" data-body="14" data-name="2-4 HIS LIFE AT HIS FINGERTIPS" data-scene="fall">
+  <div class="stage-inner">
+    <div class="screen"><canvas width="192" height="108" data-scene="fall" aria-label="Pixel art: a boy hanging from a cliff by one hand, a falcon circling, the drop falling away below him."></canvas></div>
+    <div class="panel">
+      <p class="level-tag">LEVEL 2-4 &middot; HIS LIFE AT HIS FINGERTIPS</p>
+      <blockquote>&ldquo;He was stranded, too weak to continue, yet unable to rest, a spider climbing glass.&rdquo;<cite>MATTHEW J. KIRBY</cite></blockquote>
+      <blockquote>&ldquo;The world pivoted, he swung, but maintained his grasp on the rock with his right hand, his life at his fingertips.&rdquo;<cite>MATTHEW J. KIRBY</cite></blockquote>
+      <p class="commentary">The climax of the story is not the summit &mdash; it is this. One hand, no foothold, fingers already bleeding from under the nails, and a fatal drop underneath.</p>
+      <p class="commentary">And what he does is <strong>close his eyes, breathe, and assess.</strong> That is the story&rsquo;s real definition of grit: not the absence of fear, but the refusal to let fear make the decision.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 9 · THE SUMMIT ============ -->
+<section class="stage" id="s9" data-alt="6100" data-body="6" data-name="3-1 THE WOMAN AT THE TOP" data-scene="summit">
+  <div class="stage-inner">
+    <div class="screen"><canvas width="192" height="108" data-scene="summit" aria-label="Pixel art: a derelict cottage on a bald mountain top, an old woman with wild white hair, and a fresh cairn of stones."></canvas></div>
+    <div class="panel">
+      <p class="level-tag">LEVEL 3-1 &middot; THE WOMAN AT THE TOP OF THE WORLD</p>
+      <blockquote>&ldquo;Why&rsquo;ve you come? Who are you?&rdquo;<br>&ldquo;I am Able,&rdquo; he said.<br>&ldquo;That &hellip; is a good answer.&rdquo;<cite>THE WITCH, AND ABLE</cite></blockquote>
+      <p class="commentary">He is asked for the name that has meant <em>what he isn&rsquo;t</em> for fourteen years, and he gives it as a plain fact. The witch calls it a good answer <strong>before she mends anything.</strong></p>
+      <p class="commentary">Then: &ldquo;Your leg is mended. A sturdy branch for you.&rdquo; The leg is the reward. The sentence he said in the dark is the proof he had already earned it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10 · THE RAIN ============ -->
+<section class="stage" id="s10" data-alt="6400" data-body="100" data-heal="1" data-name="3-2 THE RAIN" data-scene="rain">
+  <div class="stage-inner">
+    <div class="screen"><canvas width="192" height="108" data-scene="rain" aria-label="Pixel art: a boy standing on the summit playing a bone flute as storm clouds gather and rain falls on the fields far below."></canvas></div>
+    <div class="panel">
+      <p class="level-tag">LEVEL 3-2 &middot; THE RAIN</p>
+      <blockquote>&ldquo;through the tattered remains of his trousers he saw a strong, healthy leg. An able leg.&rdquo;<cite>MATTHEW J. KIRBY</cite></blockquote>
+      <blockquote>&ldquo;With each note, clouds gathered and multiplied &hellip; When the clouds let loose their rain on the mountainside, and the pastures, and the fields below, he wept.&rdquo;<cite>MATTHEW J. KIRBY</cite></blockquote>
+      <p class="commentary">He gets the leg he climbed for &mdash; and immediately it isn&rsquo;t the point. &ldquo;But that was not why he had come.&rdquo; The drought is still there and the witch is gone, and he believes he has failed.</p>
+      <p class="commentary">What lifts the flute to his lips is thinking of his mum and da. <strong>Grit gets him to the top; love decides what he does once he&rsquo;s there.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 11 · THE COST ============ -->
+<section class="stage" id="s11" data-alt="6400" data-body="100" data-heal="1" data-name="3-3 THE COST" data-scene="coda">
+  <div class="stage-inner">
+    <div class="screen"><canvas width="192" height="108" data-scene="coda" aria-label="Pixel art: a wide quiet view. One small figure alone on the summit, green fields far below under rain."></canvas></div>
+    <div class="panel">
+      <p class="level-tag">LEVEL 3-3 &middot; THE COST</p>
+      <blockquote>&ldquo;The witch had gone, but Able heard the music now, and he would stay here at the top of the world to play it.&rdquo;<cite>MATTHEW J. KIRBY</cite></blockquote>
+      <p class="commentary">It is worth noticing that this victory never comes home. He saves the village and does not walk back into it. He takes the old woman&rsquo;s place &mdash; her post, her flute, and her solitude at the top of the world.</p>
+      <p class="commentary">Kirby lets him win and still asks what winning took. The last line of the story is not about the rain: &ldquo;Perhaps they would even hear his name.&rdquo; After everything, what he wants is for his parents to hear him called <em>Able</em> and have it finally be true.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 12 · RESULTS ============ -->
+<section class="stage" id="s12" data-alt="6400" data-body="100" data-heal="1" data-name="RESULTS" data-scene="none">
+  <div class="stage-inner">
+    <div class="panel">
+      <h2 class="results-title">&#9733; THE FULL SAYING &#9733;</h2>
+      <p class="commentary" style="margin-bottom:1.6em">The prompt asked for the best saying of wisdom in this story. A single sentence can&rsquo;t carry it. Read the climb back in order and the meaning is the <strong>sequence</strong>, not any one line:</p>
+      <ol class="tally">
+        <li><b>1-1</b><span>&ldquo;all his name did was remind Able of what he wasn&rsquo;t&rdquo;</span></li>
+        <li><b>1-2</b><span>&ldquo;there&rsquo;d be no work for you. This drought has made sure of that&rdquo;</span></li>
+        <li><b>1-3</b><span>&ldquo;Three fools have gone up the mountain. None reached the peak&rdquo;</span></li>
+        <li><b>1-4</b><span>&ldquo;But all that fell on Able&rsquo;s back were words&rdquo;</span></li>
+        <li><b>2-1</b><span>&ldquo;But he climbed. And climbed.&rdquo;</span></li>
+        <li><b>2-2</b><span>&ldquo;he struggled to his feet&rdquo;</span></li>
+        <li><b>2-3</b><span>&ldquo;tossed it away &hellip; took hold of the mountain by the folds in its skin&rdquo;</span></li>
+        <li><b>2-4</b><span>&ldquo;his life at his fingertips&rdquo;</span></li>
+        <li><b>3-1</b><span>&ldquo;I am Able.&rdquo; &mdash; &ldquo;That &hellip; is a good answer.&rdquo;</span></li>
+        <li><b>3-2</b><span>&ldquo;An able leg.&rdquo; &hellip; &ldquo;he wept&rdquo;</span></li>
+        <li><b>3-3</b><span>&ldquo;Perhaps they would even hear his name.&rdquo;</span></li>
+      </ol>
+      <div class="thesis">
+        <p>No matter the odds, as long as you have grit and a belief in yourself that surpasses others&rsquo;, you can do anything &mdash; from taking your first steps outside, to summiting a mountain, all with a broken leg.</p>
+        <p>The impossible is never really impossible. The sky is not the limit.</p>
+        <p>As long as you have grit by your side, you can also be the man or woman at the top of the world.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <p><strong>&ldquo;The Woman at the Top of the World&rdquo; is a short story by Matthew J. Kirby.</strong><br>
+  All quoted phrases are his and are reproduced as brief excerpts for the purpose of commentary.</p>
+  <p>This page is a student multimodal reflection made for a school English assignment.<br>
+  Pixel art, code and commentary by Jude.</p>
+</footer>
+
+<script>
+(function(){
+"use strict";
+
+/* ==================================================================
+   1 · PALETTE  — every colour in the build comes from here
+   ================================================================== */
+var PAL = {
+  '.': null,
+  '0':'#14101c', '1':'#f0bd94', '2':'#c98a63', '3':'#6b4229',
+  '4':'#9a8557', '5':'#6f5e3c', '6':'#4e4030', '7':'#33291f',
+  '8':'#a97a45', '9':'#7a552e', 'a':'#b9c2cc', 'b':'#7d8895',
+  'c':'#4d5764', 'd':'#f2efe4', 'e':'#cfc9b4', 'f':'#5aa64f',
+  'g':'#e8d7a8', 'h':'#b53a3a', 'i':'#3b3a6e', 'j':'#8fe3ff',
+  'k':'#c9a05c', 'l':'#8a5f38', 'm':'#e0b878', 'n':'#f7e6c0',
+  'p':'#2a2436', 'q':'#ffd257', 'r':'#6b7a4a', 's':'#3f4a2c'
+};
+var CO = {
+  ink:'#14101c', shadow:'#2a2436', night:'#1b1730',
+  dust0:'#f7e6c0', dust1:'#e8c98d', dust2:'#c99b58', dust3:'#8a5f38',
+  gran0:'#d5dde5', gran1:'#9aa7b5', gran2:'#66717f', gran3:'#3c4552',
+  strm0:'#cfd8ff', strm1:'#6a72b8', strm2:'#3b3a6e', strm3:'#1e1c3a',
+  gold:'#ffd257', rain:'#8fe3ff', blood:'#b53a3a', grass:'#5aa64f',
+  bone:'#f2efe4', straw:'#c9a05c', earth:'#8a5f38', wood:'#a97a45',
+  olive:'#6b7a4a', olived:'#3f4a2c', paper:'#f4ecd8'
+};
+
+/* ==================================================================
+   2 · SPRITES — string pixel maps, one char per palette entry
+   ================================================================== */
+var SPR = {};
+
+SPR.able = [
+'....3333....','...333333...','..33111133..','..31111113..',
+'..31011013..','..31111113..','...3111113..','....11111...',
+'....04440...','...4444444..','..14444441..','..14444441..',
+'...444444...','...455544...','....66.66...','....6..66...',
+'....6..66...','....7..77...'];
+
+SPR.ableHealed = [
+'....3333....','...333333...','..33111133..','..31111113..',
+'..31011013..','..31111113..','...3111113..','....11111...',
+'....04440...','...4444444..','..14444441..','..14444441..',
+'...444444...','...455544...','...66..66...','...66..66...',
+'...66..66...','...77..77...'];
+
+SPR.ableFlute = [
+'....3333....','...333333...','..33111133..','..31111113..',
+'..31011013..','..311111gggg','...311111...','....11111...',
+'....04440...','...4444441..','..14444441..','..1444444...',
+'...4455444..','...444444...','...66..66...','...66..66...',
+'...66..66...','...77..77...'];
+
+SPR.ableClimb = [
+'..1......1..','..1......1..','..14....41..','..14.33.41..',
+'..14333341..','..14333341..','...4444444..','...4444444..',
+'...4455444..','...4444444..','....44444...','....66666...',
+'....66.66...','....6..66...','....6..66...','....6..66...',
+'....7..77...','............'];
+
+SPR.ableHang = [
+'....1.......','....1.......','....14......','...3344.....',
+'..333444....','..31144441..','...4444441..','...44444.1..',
+'...445544...','....4444....','....6666....','....66.6....',
+'....6..6....','...6...6....','..6....7....','..7.........',
+'............','............'];
+
+SPR.crutch = [
+'88888','89998','.898.','.898.','.898.','.898.','.898.','.898.',
+'.898.','.898.','.898.','.898.','.898.','.898.','.898.','.999.'];
+
+SPR.villager = [
+'...3333...','..333333..','..311113..','..310013..','..311113..',
+'...1111...','...5555...','..555555..','.15555551.','.15555551.',
+'..555555..','...6666...','..66..66..','..66..66..','..66..66..',
+'..77..77..'];
+
+SPR.mother = [
+'....eeee....','...eeeeee...','..ee1111ee..','..e111111e..',
+'..e101101e..','..e111111e..','...1111.ee..','....1111.e..',
+'...hhhhhh...','..hhhhhhhh..','.1hh5555hh1.','.1hh5555hh1.',
+'..h555555h..','...555555...','...555555...','...555555...',
+'...555555...','....7..7....'];
+
+SPR.witch = [
+'..d.dddd.d..','.dddddddddd.','..dd1111dd..','..d111111d..',
+'..d101101d..','..d211112d..','...d1111d...','....1111....',
+'...cccccc...','..1cccccc1..','..1cccccc1..','...cccccc...',
+'..cccccccc..','..cpccccpc..','..cccpcccc..','...cc.ccc...',
+'...c...cc...','...1...11...'];
+
+SPR.cottage = [
+'...........kk...........','..........kkkk..........',
+'.........kkkkkk.........','........kkkkkkkk........',
+'.......kkkkkkkkkk.......','......kkkkkkkkkkkk......',
+'.....kkkkkkkkkkkkkk.....','....kkkkkkkkkkkkkkkk....',
+'...llkkkkkkkkkkkkkkll...','....bbbbbbbbbbbbbbbb....',
+'....bbqqbbbbbbbbqqbb....','....bbqqbbb99bbbqqbb....',
+'....bbbbbbb99bbbbbbb....','....bbbbbbb99bbbbbbb....',
+'....bbbbbbb99bbbbbbb....','....bbbbbbb99bbbbbbb....',
+'....cccccccccccccccc....','...cccccccccccccccccc...'];
+
+SPR.pine = [
+'.....f.....','....fff....','...fffff...','....fff....',
+'...fffff...','..fffffff..','...fffff...','..fffffff..',
+'.fffffffff.','..fffffff..','.fffffffff.','fffffffffff',
+'.....9.....','.....9.....','....999....','...99999...'];
+
+SPR.hart = [
+'..........8...8...','.........8.8.8.8..','..........888888..',
+'...........3333...','..........33033...','..........333333..',
+'.........33333....','..3333333333......','.33333333333......',
+'.333333333333.....','.33333333333......','..3...3...3.......',
+'..3...3...3.......','..7...7...7.......'];
+
+SPR.falcon = [
+'00.........00','.000.....000.','..0000.0000..','.....000.....',
+'.....000.....','......0......','.............'];
+
+SPR.owl = [
+'..3....3..','.33333333.','.3d3333d3.','.3d0330d3.','.33d33d33.',
+'..333333..','..333333..','..333333..','...3333...','...8..8...'];
+
+SPR.cairn = [
+'.....b.....','....bbb....','....aab....','...bbbbb...','...baabb...',
+'..bbbbbbb..','..baabbab..','.bbbbbbbbb.','.baabbbaab.','bbbbbbbbbbb',
+'baabbbaabbb','bbbbbbbbbbb','ccccccccccc'];
+
+SPR.kettle = [
+'....00000....','...0.....0...','..0.......0..','.ccccccccccc.',
+'ccccccccccccc','ccccccccccccc','ccccccccccccc','.ccccccccccc.',
+'..ccccccccc..','...ccccccc...','....hhhhh....'];
+
+SPR.flute = ['.gggggggggggggg.','gg0g0g0g0g0ggggg','gggggggggggggggg','.99999999999999.'];
+
+SPR.skull = [
+'..ddddddd..','.ddddddddd.','dd00ddd00dd','ddddddddddd','.ddddddddd.',
+'..ddd0ddd..','...ddddd...','....d0d....'];
+
+/* palette remaps -------------------------------------------------- */
+var DRY   = { f:CO.olive, '9':'#6b5330' };                       /* dry pine   */
+var DEAD  = { f:'#7d6a3f', '9':'#5c4426' };                      /* dead pine  */
+var GNARL = { f:'#4a5a3c', '9':'#3a2c1c' };                      /* summit pine*/
+var ROT   = { k:'#6e6a58', l:'#3f3c31', b:'#7c8189', q:'#2a2436',
+              '9':'#3a352c', c:'#2f333a' };                      /* ruined hut */
+var DARK  = { '3':'#241d33','1':'#3a3350','4':'#241d33','5':'#1b1730',
+              '6':'#1b1730','7':'#14101c','2':'#2a2436' };       /* silhouette */
+
+/* ==================================================================
+   3 · 3x5 BITMAP FONT
+   ================================================================== */
+var F = {
+ A:'###|#.#|###|#.#|#.#', B:'##.|#.#|##.|#.#|##.', C:'###|#..|#..|#..|###',
+ D:'##.|#.#|#.#|#.#|##.', E:'###|#..|##.|#..|###', F:'###|#..|##.|#..|#..',
+ G:'###|#..|#.#|#.#|###', H:'#.#|#.#|###|#.#|#.#', I:'###|.#.|.#.|.#.|###',
+ J:'..#|..#|..#|#.#|###', K:'#.#|#.#|##.|#.#|#.#', L:'#..|#..|#..|#..|###',
+ M:'#.#|###|###|#.#|#.#', N:'##.|#.#|#.#|#.#|#.#', O:'###|#.#|#.#|#.#|###',
+ P:'###|#.#|###|#..|#..', Q:'###|#.#|#.#|###|..#', R:'###|#.#|##.|#.#|#.#',
+ S:'###|#..|###|..#|###', T:'###|.#.|.#.|.#.|.#.', U:'#.#|#.#|#.#|#.#|###',
+ V:'#.#|#.#|#.#|#.#|.#.', W:'#.#|#.#|###|###|#.#', X:'#.#|#.#|.#.|#.#|#.#',
+ Y:'#.#|#.#|.#.|.#.|.#.', Z:'###|..#|.#.|#..|###',
+ '0':'###|#.#|#.#|#.#|###','1':'.#.|##.|.#.|.#.|###','2':'###|..#|###|#..|###',
+ '3':'###|..#|.##|..#|###','4':'#.#|#.#|###|..#|..#','5':'###|#..|###|..#|###',
+ '6':'###|#..|###|#.#|###','7':'###|..#|..#|..#|..#','8':'###|#.#|###|#.#|###',
+ '9':'###|#.#|###|..#|###',
+ '.':'...|...|...|...|.#.', ',':'...|...|...|.#.|#..', '!':'.#.|.#.|.#.|...|.#.',
+ '?':'###|..#|.##|...|.#.', '-':'...|...|###|...|...', "'":'.#.|.#.|...|...|...',
+ ':':'...|.#.|...|.#.|...', '"':'#.#|#.#|...|...|...', ' ':'...|...|...|...|...',
+ '/':'..#|..#|.#.|#..|#..'
+};
+
+/* ==================================================================
+   4 · DRAW HELPERS
+   ================================================================== */
+function rect(g,x,y,w,h,c){ if(!c) return; g.fillStyle=c; g.fillRect(x|0,y|0,w|0,h|0); }
+
+function spr(g,map,x,y,opt){
+  opt = opt || {};
+  var flip = opt.flip, remap = opt.remap || {}, alpha = opt.alpha;
+  if(alpha != null){ g.save(); g.globalAlpha = alpha; }
+  for(var j=0;j<map.length;j++){
+    var row = map[j], w = row.length;
+    for(var i=0;i<w;i++){
+      var ch = row.charAt(i);
+      if(ch === '.') continue;
+      var c = remap[ch] || PAL[ch];
+      if(!c) continue;
+      g.fillStyle = c;
+      g.fillRect((x + (flip ? (w-1-i) : i))|0, (y+j)|0, 1, 1);
+    }
+  }
+  if(alpha != null) g.restore();
+}
+
+function text(g,str,x,y,c,sp){
+  sp = (sp==null) ? 1 : sp;
+  str = String(str).toUpperCase();
+  g.fillStyle = c;
+  var cx = x;
+  for(var n=0;n<str.length;n++){
+    var gl = F[str.charAt(n)];
+    if(!gl){ cx += 4+sp-1; continue; }
+    var rows = gl.split('|');
+    for(var j=0;j<5;j++) for(var i=0;i<3;i++)
+      if(rows[j].charAt(i)==='#') g.fillRect((cx+i)|0,(y+j)|0,1,1);
+    cx += 3+sp;
+  }
+  return cx;
+}
+function textW(str,sp){ sp=(sp==null)?1:sp; return String(str).length*(3+sp)-sp; }
+
+/* text with a dithered dark backing plate, so captions stay readable
+   over cliffs, quilted fields and rain without breaking the pixel look */
+function caption(g,str,x,y,c){
+  var w = textW(str);
+  rect(g, x-2, y-2, w+4, 9, '#14101c');
+  rect(g, x-2, y-2, w+4, 1, '#2a2436');
+  text(g, str, x, y, c);
+}
+
+/* deterministic hash — no Math.random anywhere, so art is stable */
+function hsh(x,y,s){
+  var h = (x|0)*374761393 + (y|0)*668265263 + (s|0)*1442695040;
+  h = (h ^ (h >>> 13)) * 1274126177;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+var BAYER = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+
+/* dithered vertical ramp through a list of colours */
+function vramp(g,x,y,w,h,stops){
+  var n = stops.length - 1;
+  for(var j=0;j<h;j++){
+    var u = h<=1 ? 0 : j/(h-1);
+    var f = u*n, i = Math.min(n-1, Math.floor(f)), t = f - i;
+    var c1 = stops[i], c2 = stops[i+1];
+    for(var k=0;k<w;k++){
+      var th = (BAYER[(y+j)&3][(x+k)&3] + 0.5)/16;
+      g.fillStyle = (t > th) ? c2 : c1;
+      g.fillRect(x+k, y+j, 1, 1);
+    }
+  }
+}
+
+/* dithered flat wash of c2 over c1 at strength t */
+function wash(g,x,y,w,h,c,t){
+  g.fillStyle = c;
+  for(var j=0;j<h;j++) for(var k=0;k<w;k++){
+    var th = (BAYER[(y+j)&3][(x+k)&3] + 0.5)/16;
+    if(t > th) g.fillRect(x+k, y+j, 1, 1);
+  }
+}
+
+/* jagged mountain, filled per-column so every edge is a hard pixel step */
+function peak(g,cx,peakY,baseY,halfW,c,cap,capY,seed){
+  for(var x=cx-halfW; x<=cx+halfW; x++){
+    if(x<0 || x>=192) continue;
+    var t = Math.abs(x-cx)/halfW;
+    var y = peakY + (baseY-peakY)*Math.pow(t,0.82);
+    y += Math.floor(hsh(x,0,seed)*3) - 1;
+    y = Math.round(y);
+    if(y >= baseY) continue;
+    rect(g,x,y,1,baseY-y,c);
+    if(cap && y < capY) rect(g,x,y,1,Math.min(capY,baseY)-y,cap);
+  }
+}
+
+/* rolling ridge line */
+function ridge(g,y0,amp,c,seed,baseY){
+  for(var x=0;x<192;x++){
+    var y = y0
+      + Math.sin((x+seed*13)/23)*amp
+      + Math.sin((x+seed*7)/9)*amp*0.4
+      + Math.floor(hsh(x,1,seed)*2);
+    y = Math.round(y);
+    rect(g,x,y,1,baseY-y,c);
+  }
+}
+
+function ground(g,y0,stops){ vramp(g,0,y0,192,108-y0,stops); }
+
+function cracks(g,y0,c,seed){
+  for(var n=0;n<14;n++){
+    var x = Math.floor(hsh(n,3,seed)*192);
+    var y = y0 + Math.floor(hsh(n,4,seed)*(106-y0));
+    var len = 4 + Math.floor(hsh(n,5,seed)*12);
+    var dir = hsh(n,6,seed) > 0.5 ? 1 : -1;
+    for(var k=0;k<len;k++){
+      rect(g,x+k,y+Math.round(Math.sin(k/3)*dir),1,1,c);
+    }
+  }
+}
+
+function stars(g,count,maxY,seed){
+  for(var n=0;n<count;n++){
+    var x = Math.floor(hsh(n,7,seed)*192);
+    var y = Math.floor(hsh(n,8,seed)*maxY);
+    var b = hsh(n,9,seed);
+    rect(g,x,y,1,1, b>0.75 ? CO.paper : (b>0.4 ? CO.gran0 : CO.gran1));
+  }
+}
+
+/* ==================================================================
+   5 · SCENES  (192 x 108 logical)
+   ================================================================== */
+var W = 192, H = 108;
+var SC = {};
+
+SC.title = {
+  bg:function(g){
+    vramp(g,0,0,W,72,[CO.dust2,CO.dust1,CO.dust0]);
+    var sun = 46;
+    for(var j=-7;j<=7;j++) for(var i=-7;i<=7;i++)
+      if(i*i+j*j<=49) rect(g,140+i,sun+j,1,1,'#fff3cf');
+    ridge(g,64,3,CO.gran1,2,84);
+    peak(g,96,10,84,88,CO.gran2,CO.gran0,24,5);
+    peak(g,44,34,84,40,CO.gran3,null,0,9);
+    ground(g,84,[CO.dust3,CO.dust2,CO.dust1]);
+    cracks(g,88,'#6b4a2b',1);
+    spr(g,SPR.pine,150,68,{remap:DEAD});
+    spr(g,SPR.pine,172,70,{remap:DEAD});
+  },
+  fg:function(g,f){
+    var b = (f>>1)&1;
+    spr(g,SPR.crutch,24,68+b);
+    spr(g,SPR.able,28,66+b);
+  }
+};
+
+SC.village = {
+  bg:function(g){
+    vramp(g,0,0,W,60,[CO.dust1,CO.dust0,'#fff6e0']);
+    ridge(g,52,4,CO.gran1,3,66);
+    peak(g,150,6,66,58,CO.gran2,CO.gran0,20,4);
+    vramp(g,0,66,W,18,[CO.dust2,CO.dust1]);
+    ground(g,84,[CO.dust3,'#a8763f',CO.dust2]);
+    cracks(g,88,'#6b4a2b',2);
+    spr(g,SPR.cottage,6,66,{remap:{k:'#9a6f38', l:'#5f4326', b:'#d8c3a0', c:'#5f4326', '9':'#5f4326'}});
+    spr(g,SPR.cottage,150,66,{remap:{k:'#9a6f38', l:'#5f4326', b:'#d8c3a0', c:'#5f4326', '9':'#5f4326'}});
+    spr(g,SPR.pine,42,68,{remap:DEAD});
+    spr(g,SPR.pine,136,68,{remap:DEAD});
+    rect(g,0,84,192,1,'#7a5330');
+    for(var x=0;x<192;x+=6) rect(g,x,92,3,1,'#a8763f');
+  },
+  fg:function(g,f){
+    var s = (f>>1)&1;
+    spr(g,SPR.villager,74,68+s);
+    spr(g,SPR.villager,88,68+(1-s));
+    spr(g,SPR.villager,102,68+s);
+    spr(g,SPR.crutch,32,68);
+    spr(g,SPR.able,36,66);
+    caption(g,'THE EDGE OF THINGS',30,99,'#f2dcaa');
+  }
+};
+
+SC.mother = {
+  bg:function(g){
+    vramp(g,0,0,W,88,['#4a3f57','#3a3145','#2f2839']);
+    for(var x=0;x<192;x+=24) rect(g,x,0,2,88,'#2a2436');
+    rect(g,0,12,192,2,'#2a2436');
+    /* window onto the drought outside */
+    rect(g,12,16,38,32,'#1b1730');
+    rect(g,14,18,34,28,CO.dust1);
+    rect(g,14,34,34,12,CO.dust2);
+    rect(g,14,42,34,4,'#8a5f38');
+    rect(g,30,18,2,28,'#1b1730');
+    rect(g,14,30,34,2,'#1b1730');
+    /* shelf */
+    rect(g,58,24,44,2,'#5c4a2e');
+    rect(g,62,17,5,7,'#7d8895'); rect(g,70,18,5,6,'#9a8557'); rect(g,79,16,6,8,'#6f5e3c');
+    /* fireplace */
+    rect(g,106,16,86,72,'#5c5a66');
+    for(var j=0;j<72;j+=6) for(var i=0;i<86;i+=10)
+      rect(g,107+i+((j/6)&1?5:0),17+j,8,4, hsh(i,j,4)>0.5?'#6e6c78':'#4e4c58');
+    rect(g,114,36,66,6,'#3f3d47');
+    rect(g,118,42,60,46,'#14101c');
+    rect(g,112,84,74,4,'#3a3145');
+    /* floor */
+    ground(g,88,['#4a3b2a','#3a2e21']);
+    for(var x2=0;x2<192;x2+=11) rect(g,x2,88,1,20,'#2f251b');
+    /* table */
+    rect(g,6,76,38,4,'#6b4f2e');
+    rect(g,9,80,3,10,'#4f3a21'); rect(g,38,80,3,10,'#4f3a21');
+  },
+  fg:function(g,f){
+    var fl=(f>>1)&1;
+    for(var i=0;i<11;i++){
+      var fx=122+i*5, hg=4+Math.floor(hsh(i,fl,3)*6);
+      rect(g,fx,84-hg,4,hg, (i%2) ? '#b53a3a' : '#d8622f');
+      rect(g,fx+1,86-hg,2,hg-2, fl ? CO.gold : '#ffb03a');
+    }
+    rect(g,120,84,56,4,'#7a2f1f');
+    rect(g,126,48,44,2,'#2a2436');
+    rect(g,146,50,2,8,'#2a2436');
+    spr(g,SPR.kettle,140,58);
+    spr(g,SPR.mother,56,70);
+    spr(g,SPR.crutch,72,72);
+    spr(g,SPR.able,76,70);
+    caption(g,'"SO STRONG, THOSE HANDS O YOURS"',5,99,'#e0d5bd');
+  }
+};
+
+SC.decision = {
+  bg:function(g){
+    vramp(g,0,0,W,70,[CO.night,CO.strm3,CO.strm2,'#4c4a80']);
+    stars(g,60,58,11);
+    /* moon */
+    for(var j=-5;j<=5;j++) for(var i=-5;i<=5;i++)
+      if(i*i+j*j<=25) rect(g,32+i,18+j,1,1,'#e8e6ff');
+    for(var j2=-4;j2<=4;j2++) for(var i2=-4;i2<=4;i2++)
+      if(i2*i2+j2*j2<=16) rect(g,35+i2,15+j2,1,1,'#3b3a6e');
+    ridge(g,62,3,'#2b2a4e',6,80);
+    peak(g,110,4,80,74,'#22213f',null,0,7);
+    ground(g,80,['#1e1b30','#171426']);
+    spr(g,SPR.cottage,4,62,{remap:DARK});
+  },
+  fg:function(g,f){
+    spr(g,SPR.cairn,26,67,{remap:{b:'#5a5f74',a:'#7d84a0',c:'#33364a'}});
+    spr(g,SPR.cairn,64,67,{remap:{b:'#5a5f74',a:'#7d84a0',c:'#33364a'}});
+    spr(g,SPR.cairn,102,67,{remap:{b:'#5a5f74',a:'#7d84a0',c:'#33364a'}});
+    caption(g,'THREE FOOLS',24,91,'#b8bce0');
+    caption(g,'NONE REACHED THE PEAK',24,100,'#8e93b8');
+    if(((f>>2)&3)===0) spr(g,SPR.owl,168,52,{remap:{'3':'#4a4470'}});
+    else spr(g,SPR.owl,168,52,{remap:{'3':'#3c3760','d':'#9a95c0'}});
+  }
+};
+
+SC.gauntlet = {
+  bg:function(g){
+    vramp(g,0,0,W,58,[CO.dust2,CO.dust1,CO.dust0]);
+    ridge(g,50,3,CO.gran1,8,64);
+    vramp(g,0,64,W,22,[CO.dust2,'#b98a4c']);
+    ground(g,86,['#8a5f38','#a8763f','#c99b58']);
+    spr(g,SPR.cottage,-2,64,{remap:{k:'#9a6f38',l:'#5f4326',b:'#d8c3a0',c:'#5f4326','9':'#5f4326',q:'#3a2e21'}});
+    spr(g,SPR.cottage,168,64,{remap:{k:'#9a6f38',l:'#5f4326',b:'#d8c3a0',c:'#5f4326','9':'#5f4326',q:'#3a2e21'}});
+    for(var x=0;x<192;x+=8) rect(g,x,96,5,1,'#7a5330');
+    cracks(g,90,'#6b4a2b',5);
+  },
+  fg:function(g,f){
+    var s=(f>>1)&1;
+    spr(g,SPR.villager,104,70+s,{flip:true});
+    spr(g,SPR.villager,120,70,{flip:true});
+    spr(g,SPR.villager,136,70+(1-s),{flip:true});
+    spr(g,SPR.villager,152,70+s,{flip:true});
+    spr(g,SPR.crutch,36,70);
+    spr(g,SPR.able,40,68);
+    var jig = s?0:1;
+    text(g,'CURSES',96+jig,30,CO.blood);
+    text(g,'BEGET',124,40,CO.blood);
+    text(g,'CURSES',146-jig,50,CO.blood);
+    caption(g,'...ONLY WORDS',34,99,'#f2dcaa');
+  }
+};
+
+SC.foothills = {
+  bg:function(g){
+    vramp(g,0,0,W,82,['#9aa7b5','#c9c3b0','#e8c98d','#f2dcaa']);
+    peak(g,132,-14,82,86,CO.gran2,null,0,3);
+    peak(g,40,10,82,52,CO.gran1,null,0,6);
+    /* slope rising left-to-right */
+    for(var x=0;x<192;x++){
+      var y = 78 - Math.round(x*0.24) + Math.floor(hsh(x,2,12)*2);
+      rect(g,x,y,1,108-y,'#8d7a4e');
+      rect(g,x,y,1,2,'#a89463');
+    }
+    cracks(g,72,'#5f4326',8);
+    /* dried stubble of former crops */
+    for(var n=0;n<150;n++){
+      var sx=Math.floor(hsh(n,60,4)*192);
+      var sy=78-Math.round(sx*0.24)+2+Math.floor(hsh(n,61,4)*24);
+      if(sy>106) continue;
+      rect(g,sx,sy,1,2,hsh(n,62,4)>0.5?'#a89463':'#7a6538');
+    }
+    /* two short stretches of ruined stone fence */
+    [[24,52],[112,64]].forEach(function(seg){
+      for(var x2=seg[0]; x2<seg[0]+seg[1]; x2+=5){
+        var fy = 78 - Math.round(x2*0.24) - 5;
+        rect(g,x2,fy,4,5,'#9aa7b5');
+        rect(g,x2,fy+5,4,1,'#66717f');
+        rect(g,x2+1,fy+1,1,1,'#c3cbd4');
+      }
+    });
+  },
+  fg:function(g,f){
+    spr(g,SPR.pine,150,26,{remap:DRY});
+    spr(g,SPR.pine,168,30,{remap:DEAD});
+    spr(g,SPR.skull,30,78);
+    var b=(f>>1)&1;
+    var ax=70, ay=78-Math.round(ax*0.24)-18;
+    spr(g,SPR.crutch,ax-5,ay+3+b);
+    spr(g,SPR.able,ax,ay+b);
+    caption(g,'AND CLIMBED',6,99,'#f2dcaa');
+  }
+};
+
+SC.dawn = {
+  bg:function(g){
+    vramp(g,0,0,W,64,['#2b2a4e','#6a5f8c','#c98a63','#e8c98d']);
+    var sy=54;
+    for(var j=-6;j<=6;j++) for(var i=-6;i<=6;i++)
+      if(i*i+j*j<=36) rect(g,26+i,sy+j,1,1,'#ffe6a8');
+    ridge(g,58,4,'#4a4a6e',4,72);
+    ridge(g,66,3,'#5c5a70',9,80);
+    ground(g,80,['#5a5340','#43402f']);
+    for(var k=0;k<7;k++) spr(g,SPR.pine,8+k*27,60,{remap:{f:'#3f4a52','9':'#2f2a26'}});
+    /* mist bands */
+    wash(g,0,58,192,10,'#cfd8e8',0.45);
+    wash(g,0,66,192,8,'#cfd8e8',0.30);
+    wash(g,0,72,192,8,'#cfd8e8',0.16);
+  },
+  fg:function(g,f){
+    spr(g,SPR.pine,140,54,{remap:GNARL});
+    spr(g,SPR.hart,128,62);
+    var b=(f>>1)&1;
+    spr(g,SPR.crutch,34,66+b);
+    spr(g,SPR.able,38,64+b);
+    caption(g,'HE STRUGGLED TO HIS FEET',6,99,'#e2e7ec');
+  }
+};
+
+SC.wall = {
+  bg:function(g){
+    /* sheer granite filling the frame */
+    vramp(g,0,0,W,H,['#8d99a8','#66717f','#4d5764','#3c4552']);
+    for(var n=0;n<300;n++){
+      var x=Math.floor(hsh(n,20,3)*192), y=Math.floor(hsh(n,21,3)*108);
+      var w=1+Math.floor(hsh(n,22,3)*4), h=1+Math.floor(hsh(n,23,3)*3);
+      rect(g,x,y,w,h, hsh(n,24,3)>0.5 ? '#7d8895' : '#3c4552');
+    }
+    /* vertical fissures — the "folds in its skin" */
+    for(var m=0;m<7;m++){
+      var cx=12+m*27, yy=0;
+      while(yy<108){
+        var dx=Math.round(Math.sin((yy+m*17)/11)*3);
+        rect(g,cx+dx,yy,2,3,'#2e3742');
+        rect(g,cx+dx+2,yy,1,3,'#8d99a8');
+        yy+=3;
+      }
+    }
+    /* sky sliver at the top */
+    vramp(g,0,0,W,10,['#b9c2cc','#8d99a8']);
+  },
+  fg:function(g,f){
+    var b=(f>>1)&1;
+    spr(g,SPR.ableClimb,84,34-b);
+    /* the crutch, thrown, falling away and never returning */
+    var t=(f%40)/40;
+    var cy=44+t*80, cx2=58-t*14;
+    if(cy<118){
+      spr(g,SPR.crutch,cx2,cy,{alpha:1-t*0.5});
+      rect(g,cx2+2,cy-6,1,5,'#8d99a8');
+    }
+    caption(g,'HIS FATHERS CRUTCH',6,89,'#cfd8e8');
+    caption(g,'LET GO',6,99,'#ffd257');
+  }
+};
+
+SC.fall = {
+  bg:function(g){
+    vramp(g,0,0,W,H,['#9aa7b5','#c3cbd4','#d5dde5','#b9c2cc']);
+    /* the drop: farm quilt far below on the right */
+    for(var y=68;y<108;y++){
+      var t=(y-68)/40;
+      for(var x=64;x<192;x++){
+        var q = (Math.floor(x/9)+Math.floor(y/5))&1;
+        var c = q ? '#a08a5e' : '#8e7a52';
+        if(hsh(x,y,13)>0.85) c='#6f5e3c';
+        rect(g,x,y,1,1,c);
+      }
+      wash(g,64,y,128,1,'#c3cbd4',0.55-t*0.45);
+    }
+    for(var x2=64;x2<192;x2+=13) rect(g,x2,68,1,40,'#6f5e3c');
+    for(var y2=72;y2<108;y2+=7) rect(g,64,y2,128,1,'#6f5e3c');
+    /* the cliff face on the left */
+    for(var y3=0;y3<108;y3++){
+      var edge = 60 + Math.round(Math.sin(y3/9)*4) + Math.floor(hsh(0,y3,17)*3);
+      vramp(g,0,y3,edge,1,['#4d5764','#66717f']);
+      rect(g,edge-2,y3,2,1,'#2e3742');
+    }
+    for(var n=0;n<180;n++){
+      var px=Math.floor(hsh(n,30,7)*56), py=Math.floor(hsh(n,31,7)*108);
+      rect(g,px,py,1+Math.floor(hsh(n,32,7)*3),1, hsh(n,33,7)>0.5?'#7d8895':'#3c4552');
+    }
+  },
+  fg:function(g,f){
+    spr(g,SPR.ableHang,48,30);
+    rect(g,52,28,1,3,CO.blood);
+    /* the falcon, circling */
+    var a=(f%48)/48*Math.PI*2;
+    spr(g,SPR.falcon, 112+Math.round(Math.cos(a)*26), 22+Math.round(Math.sin(a)*9));
+    caption(g,'A SPIDER CLIMBING GLASS',72,89,'#e2e7ec');
+    caption(g,'HIS LIFE AT HIS FINGERTIPS',72,99,'#ff9a9a');
+  }
+};
+
+SC.summit = {
+  bg:function(g){
+    vramp(g,0,0,W,76,['#3b3a6e','#6a72b8','#9aa7b5','#c3cbd4']);
+    stars(g,26,26,21);
+    ridge(g,52,5,'#5c6478',5,76);
+    /* bald pate of the mountain */
+    for(var x=0;x<192;x++){
+      var y=70+Math.round(Math.sin(x/29)*4)+Math.floor(hsh(x,40,2)*2);
+      rect(g,x,y,1,108-y,'#8d99a8');
+      rect(g,x,y,1,2,'#b9c2cc');
+    }
+    for(var n=0;n<70;n++){
+      var sx=Math.floor(hsh(n,41,9)*192), sy=76+Math.floor(hsh(n,42,9)*30);
+      rect(g,sx,sy,2+Math.floor(hsh(n,43,9)*4),2,'#66717f');
+    }
+    spr(g,SPR.cottage,110,52,{remap:ROT});
+    for(var m=0;m<5;m++) rect(g,116+m*9,52+Math.floor(hsh(m,44,3)*4),3,2,'#3b3a6e');
+    spr(g,SPR.pine,6,56,{remap:GNARL});
+    spr(g,SPR.pine,88,58,{remap:GNARL});
+    /* neglected vegetable patch */
+    for(var v=0;v<9;v++) rect(g,60+v*4,84,2,3,'#5c6a3c');
+  },
+  fg:function(g,f){
+    spr(g,SPR.cairn,32,74);
+    var s=(f>>2)&1;
+    spr(g,SPR.witch,74,70-s);
+    spr(g,SPR.crutch,100,74);
+    spr(g,SPR.able,104,72);
+    caption(g,'"I AM ABLE"',6,89,'#ffd257');
+    caption(g,'"THAT IS A GOOD ANSWER"',6,99,'#e2e7ec');
+  }
+};
+
+SC.rain = {
+  bg:function(g){
+    vramp(g,0,0,W,H,['#1e1c3a','#3b3a6e','#6a72b8','#5c6a5a','#4a6a42']);
+    /* fields below going green */
+    for(var y=84;y<108;y++) for(var x=0;x<192;x++){
+      var q=(Math.floor(x/9)+Math.floor(y/4))&1;
+      rect(g,x,y,1,1, q?'#4a7a3e':'#3d6636');
+    }
+    for(var x2=0;x2<192;x2+=13) rect(g,x2,84,1,24,'#2f5029');
+    /* the peak */
+    peak(g,96,30,88,52,'#3c4552','#5c6478',40,3);
+    /* storm shelf */
+    vramp(g,0,0,W,26,['#14101c','#241d33','#2f2b52']);
+    for(var n=0;n<26;n++){
+      var cx=Math.floor(hsh(n,50,4)*192), cy=Math.floor(hsh(n,51,4)*24);
+      rect(g,cx,cy,10+Math.floor(hsh(n,52,4)*14),4,'#1b1730');
+      rect(g,cx+2,cy-2,8+Math.floor(hsh(n,53,4)*10),2,'#2f2b52');
+    }
+  },
+  fg:function(g,f){
+    /* pixel rain */
+    for(var n=0;n<150;n++){
+      var x=Math.floor(hsh(n,60,5)*192);
+      var y=(Math.floor(hsh(n,61,5)*108) + f*7) % 116 - 8;
+      rect(g,x,y,1,3+Math.floor(hsh(n,62,5)*3),'#8fe3ff');
+    }
+    /* lightning, every eighth beat */
+    if((f%16)===0 || (f%16)===2){
+      var lx=44;
+      for(var k=0;k<18;k++){ rect(g,lx+Math.round(Math.sin(k)*3),8+k*3,2,3,'#e8f4ff'); }
+      wash(g,0,0,192,108,'#cfd8ff',0.12);
+    }
+    spr(g,SPR.ableFlute,86,38);
+    caption(g,'AN ABLE LEG',6,89,'#8fe3ff');
+    caption(g,'AND HE WEPT',6,99,'#ffd257');
+  }
+};
+
+SC.coda = {
+  bg:function(g){
+    vramp(g,0,0,W,H,['#241d33','#3b3a6e','#6a72b8','#9aa7b5','#7fa06a','#4a7a3e']);
+    /* far green country under rain */
+    for(var y=86;y<108;y++) for(var x=0;x<192;x++){
+      var q=(Math.floor(x/7)+Math.floor(y/3))&1;
+      rect(g,x,y,1,1,q?'#4a7a3e':'#3d6636');
+    }
+    /* cloud sea below the peak */
+    for(var n=0;n<40;n++){
+      var cx=Math.floor(hsh(n,70,6)*192), cy=64+Math.floor(hsh(n,71,6)*18);
+      rect(g,cx,cy,12+Math.floor(hsh(n,72,6)*16),3,'#b9c2cc');
+      rect(g,cx+3,cy+3,8+Math.floor(hsh(n,73,6)*10),2,'#9aa7b5');
+    }
+    peak(g,96,26,72,34,'#4a4a6e','#6a72b8',36,3);
+    wash(g,0,0,192,60,'#3b3a6e',0.25);
+  },
+  fg:function(g,f){
+    for(var n=0;n<70;n++){
+      var x=Math.floor(hsh(n,80,8)*192);
+      var y=(Math.floor(hsh(n,81,8)*108) + f*5) % 116 - 8;
+      rect(g,x,y,1,3,'#8fe3ff');
+    }
+    var b=(f>>2)&1;
+    spr(g,SPR.ableFlute,90,28-b,{alpha:1});
+    caption(g,'AT THE TOP OF THE WORLD',6,89,'#cfd8ff');
+    caption(g,'ALONE',6,99,'#9aa7b5');
+  }
+};
+
+/* ==================================================================
+   6 · ENGINE
+   ================================================================== */
+var doc = document, body = doc.body;
+body.classList.remove('no-js');
+body.classList.add('js-reveal');
+
+var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---- scene canvases ---- */
+var scenes = [];
+Array.prototype.forEach.call(doc.querySelectorAll('canvas[data-scene]'), function(cv){
+  var name = cv.getAttribute('data-scene');
+  var def  = SC[name];
+  if(!def){ return; }
+  var g = cv.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  scenes.push({ cv:cv, g:g, def:def, off:null, visible:false, built:false });
+});
+
+function build(s){
+  if(s.built) return;
+  var off = doc.createElement('canvas');
+  off.width = W; off.height = H;
+  var og = off.getContext('2d');
+  og.imageSmoothingEnabled = false;
+  og.fillStyle = CO.gran3; og.fillRect(0,0,W,H);   /* never leave a hole */
+  s.def.bg(og);
+  s.off = off; s.built = true;
+}
+
+function paint(s,f){
+  build(s);
+  s.g.clearRect(0,0,W,H);
+  s.g.drawImage(s.off,0,0);
+  if(s.def.fg) s.def.fg(s.g, reduce ? 3 : f);
+}
+
+/* integer pixel scaling wherever the width allows it */
+function sizeScenes(){
+  scenes.forEach(function(s){
+    var host  = s.cv.parentNode;                 /* .screen  — shrink-wraps  */
+    var inner = host.parentNode;                 /* .stage-inner — the grid  */
+    /* getComputedStyle resolves grid-template-columns to used pixel values,
+       which is the only reliable read of the cell a shrink-wrapped box sits in. */
+    var cell = 0;
+    try{
+      var cols = getComputedStyle(inner).gridTemplateColumns.split(/\s+/)
+                   .map(parseFloat).filter(function(n){ return !isNaN(n); });
+      cell = cols.length ? cols[0] : 0;
+    }catch(e){}
+    if(!cell) cell = inner.clientWidth;
+    var pad   = (parseFloat(getComputedStyle(host).paddingLeft) || 0) * 2;
+    var frame = (parseFloat(getComputedStyle(doc.documentElement).getPropertyValue('--u')) || 4) * 4;
+    var avail = Math.floor(cell - pad - frame);
+    if(avail <= 0) return;
+    var css = (avail >= W*2) ? W * Math.floor(avail / W) : avail;
+    s.cv.style.width  = css + 'px';
+    s.cv.style.height = Math.round(css * H / W) + 'px';
+  });
+}
+
+/* ---- fixed sky backdrop ---- */
+var sky = doc.getElementById('sky');
+var sg  = sky.getContext('2d');
+sg.imageSmoothingEnabled = false;
+var SKW = 192, SKH = 108, skyScale = 4;
+var fallback = doc.getElementById('sky-fallback');
+if(fallback && fallback.parentNode) fallback.parentNode.removeChild(fallback);
+
+function sizeSky(){
+  skyScale = Math.max(2, Math.ceil(window.innerWidth / SKW));
+  SKH = Math.ceil(window.innerHeight / skyScale);
+  sky.width = SKW; sky.height = SKH;
+  sky.style.width  = (SKW*skyScale) + 'px';
+  sky.style.height = (SKH*skyScale) + 'px';
+  sg.imageSmoothingEnabled = false;
+}
+
+/* four sky keyframes; scroll steps between them in discrete stages */
+var SKY_KEYS = [
+  { stops:['#e8c98d','#f2dcaa','#f7e6c0'], ridge:['#c99b58','#a8763f','#8a5f38'] },
+  { stops:['#c9b27f','#e0c58f','#efd9a4'], ridge:['#9aa7b5','#7d8895','#66717f'] },
+  { stops:['#5c6478','#8d99a8','#c3cbd4'], ridge:['#4d5764','#3c4552','#2e3742'] },
+  { stops:['#14101c','#241d33','#3b3a6e'], ridge:['#2b2a4e','#22213f','#1b1730'] }
+];
+function quant(hex){
+  var n = parseInt(hex.slice(1),16);
+  var r=(n>>16)&255, gg=(n>>8)&255, b=n&255;
+  r=Math.round(r/17)*17; gg=Math.round(gg/17)*17; b=Math.round(b/17)*17;
+  return '#' + ((1<<24)+(r<<16)+(gg<<8)+b).toString(16).slice(1);
+}
+function lerpHex(a,b,t){
+  var x=parseInt(a.slice(1),16), y=parseInt(b.slice(1),16);
+  var r=Math.round(((x>>16)&255)+(((y>>16)&255)-((x>>16)&255))*t);
+  var g2=Math.round(((x>>8)&255)+(((y>>8)&255)-((x>>8)&255))*t);
+  var b2=Math.round((x&255)+((y&255)-(x&255))*t);
+  return quant('#'+((1<<24)+(r<<16)+(g2<<8)+b2).toString(16).slice(1));
+}
+
+var STEPS = 14;
+var lastSkyStep = -1, lastSkyH = -1;
+
+function drawSky(p){
+  var step = Math.round(p*STEPS)/STEPS;
+  if(step === lastSkyStep && SKH === lastSkyH) return;
+  lastSkyStep = step; lastSkyH = SKH;
+
+  var f = step*(SKY_KEYS.length-1);
+  var i = Math.min(SKY_KEYS.length-2, Math.floor(f)), t = f-i;
+  var A = SKY_KEYS[i], B = SKY_KEYS[i+1];
+  var stops = A.stops.map(function(c,k){ return lerpHex(c, B.stops[k], t); });
+  var rid   = A.ridge.map(function(c,k){ return lerpHex(c, B.ridge[k], t); });
+
+  vramp(sg,0,0,SKW,SKH,stops);
+
+  /* three parallax ridges that fall away as you climb */
+  for(var L=0; L<3; L++){
+    var base = SKH*(0.52 + L*0.15) + step*SKH*(0.55 + L*0.5);
+    if(base > SKH + 40) continue;
+    var amp = 4 + L*3;
+    for(var x=0;x<SKW;x++){
+      var y = base
+        + Math.sin((x + L*31)/(26 - L*6))*amp
+        + Math.sin((x + L*11)/8)*amp*0.35;
+      y = Math.round(y);
+      if(y >= SKH) continue;
+      if(y < 0) y = 0;
+      sg.fillStyle = rid[L];
+      sg.fillRect(x, y, 1, SKH-y);
+    }
+  }
+  if(step > 0.72){
+    var amt = Math.min(1,(step-0.72)/0.28);
+    for(var n=0;n<Math.round(140*amt);n++){
+      var rx=Math.floor(hsh(n,90,3)*SKW), ry=Math.floor(hsh(n,91,3)*SKH);
+      sg.fillStyle='#8fe3ff';
+      sg.fillRect(rx,ry,1,3);
+    }
+  }
+}
+
+/* ---- stages, HUD, scroll ---- */
+var stageEls = Array.prototype.slice.call(doc.querySelectorAll('.stage'));
+var hudAlt   = doc.getElementById('hud-alt');
+var hudBody  = doc.getElementById('hud-body');
+var hudName  = doc.getElementById('hud-stage');
+var mAlt     = doc.getElementById('meter-alt');
+var mBody    = doc.getElementById('meter-body');
+var mBodyWrap= doc.getElementById('meter-body-wrap');
+var MAX_ALT  = 6400;
+
+var io = new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if(e.isIntersecting) e.target.classList.add('seen');
+  });
+}, { threshold: 0.18, rootMargin:'0px 0px -8% 0px' });
+stageEls.forEach(function(el){ io.observe(el); });
+
+var vio = new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    var s = scenes.filter(function(x){ return e.target.contains(x.cv); })[0];
+    if(s) s.visible = e.isIntersecting;
+  });
+}, { rootMargin:'120px 0px 120px 0px' });
+scenes.forEach(function(s){ vio.observe(s.cv.parentNode); });
+
+function num(el,attr,dflt){ var v = parseFloat(el.getAttribute(attr)); return isNaN(v) ? dflt : v; }
+
+function updateHud(){
+  var mid = window.scrollY + window.innerHeight*0.5;
+  var idx = 0;
+  for(var i=0;i<stageEls.length;i++){
+    if(stageEls[i].offsetTop <= mid) idx = i;
+  }
+  var cur = stageEls[idx], nxt = stageEls[Math.min(idx+1, stageEls.length-1)];
+  var span = Math.max(1, nxt.offsetTop - cur.offsetTop);
+  var t = Math.max(0, Math.min(1, (mid - cur.offsetTop)/span));
+
+  var a = num(cur,'data-alt',0) + (num(nxt,'data-alt',0) - num(cur,'data-alt',0))*t;
+  /* The leg is mended at the summit, not gradually on the way up it: hold the
+     body meter flat across the last wounded stage so it SNAPS full on the heal. */
+  var healing = nxt.getAttribute('data-heal') === '1' && cur.getAttribute('data-heal') !== '1';
+  var b = healing ? num(cur,'data-body',100)
+                  : num(cur,'data-body',100) + (num(nxt,'data-body',100) - num(cur,'data-body',100))*t;
+
+  hudAlt.textContent  = Math.round(a).toLocaleString('en-US') + ' FT';
+  hudBody.textContent = Math.round(b) + '%';
+  mAlt.style.transform  = 'scaleX(' + (a/MAX_ALT).toFixed(3) + ')';
+  mBody.style.transform = 'scaleX(' + (b/100).toFixed(3) + ')';
+  hudName.textContent   = cur.getAttribute('data-name') || '';
+  mBodyWrap.classList.toggle('healed', cur.getAttribute('data-heal') === '1');
+
+  var docH = Math.max(1, doc.documentElement.scrollHeight - window.innerHeight);
+  var p = Math.max(0, Math.min(1, window.scrollY / docH));
+  drawSky(p);
+
+  var zone = p < 0.34 ? 0 : (p < 0.68 ? 1 : 2);
+  var r = doc.documentElement.style;
+  if(zone === 0){
+    r.setProperty('--zone-ink','#4a3418'); r.setProperty('--zone-panel','#f7e6c0');
+    r.setProperty('--zone-edge','#8a5f38'); r.setProperty('--zone-accent','#c99b58');
+  } else if(zone === 1){
+    r.setProperty('--zone-ink','#2e3742'); r.setProperty('--zone-panel','#e2e7ec');
+    r.setProperty('--zone-edge','#66717f'); r.setProperty('--zone-accent','#9aa7b5');
+  } else {
+    r.setProperty('--zone-ink','#241d33'); r.setProperty('--zone-panel','#dcdff2');
+    r.setProperty('--zone-edge','#3b3a6e'); r.setProperty('--zone-accent','#6a72b8');
+  }
+}
+
+var ticking = false;
+function onScroll(){
+  if(ticking) return;
+  ticking = true;
+  var run = function(){ updateHud(); ticking = false; };
+  /* rAF never fires in a hidden or prerendered document; run inline there so
+     the HUD and sky are already correct the moment the tab becomes visible. */
+  if(doc.hidden) run(); else requestAnimationFrame(run);
+}
+doc.addEventListener('visibilitychange', function(){ if(!doc.hidden){ lastSkyStep=-1; updateHud(); } });
+window.addEventListener('scroll', onScroll, {passive:true});
+window.addEventListener('resize', function(){ sizeSky(); sizeScenes(); lastSkyStep=-1; updateHud(); });
+
+/* ---- chunky animation clock: 8 steps a second, visible canvases only ---- */
+var frame = 0, acc = 0, last = 0;
+function loop(ts){
+  if(!last) last = ts;
+  acc += ts - last; last = ts;
+  if(acc >= 125){
+    acc = 0; frame++;
+    for(var i=0;i<scenes.length;i++) if(scenes[i].visible) paint(scenes[i], frame);
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ---- CRT toggle ---- */
+var crtBtn = doc.getElementById('crt-toggle');
+crtBtn.addEventListener('click', function(){
+  var off = body.classList.toggle('no-crt');
+  crtBtn.textContent = 'CRT: ' + (off ? 'OFF' : 'ON');
+});
+
+/* ---- go ---- */
+sizeSky();
+sizeScenes();
+updateHud();
+scenes.forEach(function(s){ paint(s, 0); });
+if(reduce){
+  scenes.forEach(function(s){ s.visible = true; paint(s, 3); });
+  stageEls.forEach(function(el){ el.classList.add('seen'); });
+} else {
+  requestAnimationFrame(loop);
+}
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(sizeScenes);
+
+})();
+</script>
+</body>
+</html>

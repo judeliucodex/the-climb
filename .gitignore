@@ -1,0 +1,6 @@
+# The story and the written reflection are not ours to publish.
+*.pdf
+
+.DS_Store
+.env*
+.vercel
