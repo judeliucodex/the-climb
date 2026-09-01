@@ -10,13 +10,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet">
 <style>
 /* ------------------------------------------------------------------
-   THE CLIMB — pixel-art companion to "The Woman at the Top of the World"
-   Hard rules: no border-radius, no blur, no smooth gradients.
-   Everything snaps to a logical pixel grid.
+   THE CLIMB — pixel-art / comic companion to
+   "The Woman at the Top of the World"
+
+   Scroll maps to DISTANCE, not to time: the gaps between stages are
+   sized in pixels-per-foot of altitude gained, so the village (0 ft of
+   climbing) passes instantly and the granite wall takes real effort.
+
+   Pixel rules still hold for the art: integer grid, no blur, no smooth
+   gradients. The comic layer on top of it — panels, balloons, halftone,
+   the TV bezel — is where the cartoon lives.
    ------------------------------------------------------------------ */
 
 :root{
-  /* ---- locked palette ---- */
   --ink:        #14101c;
   --ink-soft:   #241d33;
   --shadow:     #2a2436;
@@ -32,20 +38,19 @@
   --grass:  #5aa64f;
   --paper:  #f4ecd8;
 
-  /* ---- runtime, driven by scroll ---- */
+  /* driven by ALTITUDE, not by scroll position */
   --zone-ink:   #4a3418;
   --zone-panel: #f7e6c0;
   --zone-edge:  #8a5f38;
   --zone-accent:#c99b58;
+  --halftone:   rgba(138,95,56,.20);
+  --cloud-op:   0;
 
-  --u: 4px;                    /* one logical pixel */
-  --frame: calc(var(--u) * 1);
+  --u: 4px;
 }
-
 @media (max-width: 720px){ :root{ --u:3px; } }
 
 *{ box-sizing:border-box; }
-
 html{ scroll-behavior:smooth; }
 @media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto; } }
 
@@ -57,31 +62,26 @@ body{
   overflow-x:hidden;
   -webkit-font-smoothing:none;
 }
-
 img, canvas{ image-rendering: pixelated; image-rendering: crisp-edges; }
-svg{ shape-rendering: crispEdges; }
 
 /* ---------- fixed backdrop ---------- */
-#sky{
-  position:fixed; inset:0; z-index:0;
-  width:100%; height:100%;
-  display:block;
-  pointer-events:none;
+#sky, #clouds{ position:fixed; left:0; z-index:0; display:block; pointer-events:none; }
+#sky{ inset:0; width:100%; height:100%; }
+#clouds{
+  opacity:var(--cloud-op);
+  transition:opacity 1.2s steps(6,end);
+  animation:drift 150s linear infinite;
+  will-change:transform;
 }
-#sky-fallback{
-  position:fixed; inset:0; z-index:0;
-  background:var(--dust-1);
-  pointer-events:none;
-}
+@keyframes drift{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+@media (prefers-reduced-motion: reduce){ #clouds{ animation:none; } }
+
+#sky-fallback{ position:fixed; inset:0; z-index:0; background:var(--dust-1); pointer-events:none; }
 
 #crt{
   position:fixed; inset:0; z-index:90; pointer-events:none;
-  background:repeating-linear-gradient(
-    to bottom,
-    rgba(0,0,0,.16) 0 1px,
-    rgba(0,0,0,0)  1px 3px
-  );
-  opacity:1;
+  background:repeating-linear-gradient(to bottom,
+    rgba(0,0,0,.15) 0 1px, rgba(0,0,0,0) 1px 3px);
 }
 body.no-crt #crt{ display:none; }
 
@@ -89,51 +89,52 @@ body.no-crt #crt{ display:none; }
 #hud{
   position:fixed; z-index:80;
   left:calc(var(--u)*4); top:calc(var(--u)*4);
-  width:calc(var(--u)*48);
-  background:var(--ink);
-  color:var(--paper);
-  padding:calc(var(--u)*2);
+  width:calc(var(--u)*50);
+  background:var(--ink); color:var(--paper);
+  padding:calc(var(--u)*2.5);
   font-family:"Press Start 2P", "Pixelify Sans", monospace;
   font-size:calc(var(--u)*1.6);
   line-height:1.9;
   box-shadow:
      0 0 0 var(--u) var(--ink),
      0 0 0 calc(var(--u)*2) var(--zone-edge),
-     calc(var(--u)*2) calc(var(--u)*2) 0 calc(var(--u)*2) rgba(0,0,0,.35);
+     calc(var(--u)*2) calc(var(--u)*2) 0 calc(var(--u)*2) rgba(0,0,0,.4);
 }
 .hud-row{ display:flex; justify-content:space-between; gap:var(--u); align-items:center; }
 .hud-key{ color:var(--zone-accent); }
-.hud-val{ color:var(--paper); }
+.hud-val{ color:var(--paper); font-variant-numeric:tabular-nums; }
 .meter{
   height:calc(var(--u)*3);
-  margin:calc(var(--u)*1) 0 calc(var(--u)*2);
+  margin:calc(var(--u)*1) 0 calc(var(--u)*2.5);
   background:var(--shadow);
   box-shadow:0 0 0 var(--u) var(--ink-soft);
-  position:relative; overflow:hidden;
+  overflow:hidden;
 }
 .meter > i{
   display:block; height:100%; width:100%;
-  background:var(--gold);
-  transform-origin:left center;
-  transition:transform .35s steps(8, end), background-color .35s steps(4,end);
+  background:var(--gold); transform-origin:left center;
+  transition:transform .18s steps(6,end), background-color .3s steps(4,end);
 }
 .meter.body > i{ background:var(--blood); }
 .meter.body.healed > i{ background:var(--grass); }
+
+#route{
+  display:block; margin:calc(var(--u)*1) auto calc(var(--u)*2);
+  background:var(--ink-soft);
+  box-shadow:0 0 0 var(--u) var(--ink-soft);
+}
 #hud .stage-name{
-  display:block; margin-top:var(--u);
-  color:var(--paper); font-size:calc(var(--u)*1.5);
-  line-height:1.8; word-break:break-word;
+  display:block; color:var(--paper);
+  font-size:calc(var(--u)*1.5); line-height:1.8; word-break:break-word;
 }
 #hud .hint{ display:block; margin-top:calc(var(--u)*2); color:var(--gran-1); font-size:calc(var(--u)*1.2); }
 
 #crt-toggle{
   position:fixed; z-index:81;
   right:calc(var(--u)*4); top:calc(var(--u)*4);
-  font-family:"Press Start 2P", monospace;
-  font-size:calc(var(--u)*1.5);
-  color:var(--paper); background:var(--ink);
-  border:0; padding:calc(var(--u)*2);
-  cursor:pointer;
+  font-family:"Press Start 2P", monospace; font-size:calc(var(--u)*1.5);
+  color:var(--paper); background:var(--ink); border:0;
+  padding:calc(var(--u)*2); cursor:pointer;
   box-shadow:0 0 0 var(--u) var(--ink), 0 0 0 calc(var(--u)*2) var(--zone-edge);
 }
 #crt-toggle:hover{ color:var(--gold); }
@@ -143,22 +144,22 @@ body.no-crt #crt{ display:none; }
     left:0; top:0; width:100%;
     display:flex; gap:calc(var(--u)*3); align-items:center;
     padding:calc(var(--u)*2) calc(var(--u)*3);
-    box-shadow:0 calc(var(--u)*1) 0 0 var(--zone-edge);
+    box-shadow:0 var(--u) 0 0 var(--zone-edge);
   }
   #hud .block{ flex:0 0 auto; min-width:calc(var(--u)*28); }
-  #hud .stage-name{ flex:1 1 auto; margin-top:0; font-size:calc(var(--u)*1.3); }
-  #hud .hint{ display:none; }
+  #hud .stage-name{ flex:1 1 auto; font-size:calc(var(--u)*1.3); }
+  #hud .hint, #route{ display:none; }
   .meter{ margin:calc(var(--u)*1) 0 0; }
   #crt-toggle{ display:none; }
 }
 
-/* ---------- layout ---------- */
+/* ---------- stages ---------- */
 main{ position:relative; z-index:10; }
 
 .stage{
-  min-height:100vh;
+  min-height:88vh;
   display:flex; align-items:center; justify-content:center;
-  padding:calc(var(--u)*14) calc(var(--u)*5);
+  padding:calc(var(--u)*16) calc(var(--u)*5);
 }
 @media (max-width:900px){ .stage{ padding:calc(var(--u)*22) calc(var(--u)*4) calc(var(--u)*10); } }
 
@@ -167,46 +168,91 @@ main{ position:relative; z-index:10; }
   display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr);
   gap:calc(var(--u)*8); align-items:center;
 }
-.stage:nth-child(even) .stage-inner{ direction:rtl; }
-.stage:nth-child(even) .stage-inner > *{ direction:ltr; }
+/* .flip is set by JS, not :nth-child — travel spacers sit between the
+   stages in the DOM and would break any positional selector. */
+.stage.flip .stage-inner{ direction:rtl; }
+.stage.flip .stage-inner > *{ direction:ltr; }
 @media (max-width:1000px){
-  .stage-inner, .stage:nth-child(even) .stage-inner{ grid-template-columns:1fr; direction:ltr; gap:calc(var(--u)*5); }
+  .stage-inner, .stage.flip .stage-inner{ grid-template-columns:1fr; direction:ltr; gap:calc(var(--u)*5); }
 }
 
-/* ---------- the screen (canvas frame) ---------- */
-.screen{
+/* ---------- travel: the space between stages IS the climb ---------- */
+.travel{
+  position:relative;
+  z-index:10;
+}
+.travel::before{                       /* the route line */
+  content:""; position:absolute;
+  left:50%; top:0; bottom:0; width:var(--u);
+  transform:translateX(-50%);
+  background:repeating-linear-gradient(to bottom,
+    var(--zone-edge) 0 calc(var(--u)*2),
+    transparent calc(var(--u)*2) calc(var(--u)*5));
+  opacity:.75;
+}
+.travel .tick{
+  position:absolute; left:50%;
+  margin-left:calc(var(--u)*3);
+  font-family:"Press Start 2P", monospace;
+  font-size:calc(var(--u)*1.35);
+  color:var(--paper); background:var(--ink);
+  padding:calc(var(--u)*1) calc(var(--u)*1.5);
+  white-space:nowrap;
+  box-shadow:0 0 0 var(--u) rgba(20,16,28,.25);
+}
+.travel .tick::before{
+  content:""; position:absolute;
+  left:calc(var(--u)*-1.5); top:50%; width:calc(var(--u)*3); height:var(--u);
+  transform:translate(-100%,-50%);
   background:var(--ink);
+}
+.travel .climber{
+  position:sticky; top:46vh;
+  display:block; margin:0 auto;   /* pixel size set inline by JS (integer scale) */
+}
+@media (max-width:900px){
+  .travel .tick{ font-size:calc(var(--u)*1.2); }
+}
+
+/* ---------- the comic panel ---------- */
+.screen{
+  --tilt:0deg;
+  background:var(--paper);
   padding:calc(var(--u)*2);
-  box-shadow:
-     0 0 0 var(--u) var(--zone-edge),
-     0 0 0 calc(var(--u)*2) var(--ink),
-     calc(var(--u)*3) calc(var(--u)*3) 0 calc(var(--u)*2) rgba(0,0,0,.4);
+  border:calc(var(--u)*1.5) solid var(--ink);
+  box-shadow:calc(var(--u)*2.5) calc(var(--u)*2.5) 0 0 rgba(20,16,28,.45);
   align-self:center; justify-self:center;
   max-width:100%; min-width:0;
+  position:relative;
 }
 .screen canvas{ display:block; max-width:100%; height:auto; background:var(--gran-3); }
-/* With JS off the canvases can never be painted, so drop the empty art frames
-   entirely rather than showing a column of black boxes. The essay still reads
-   in full: every stage's quotes and commentary are plain HTML. */
+.screen .panel-no{
+  position:absolute; top:calc(var(--u)*-2.5); left:calc(var(--u)*-2.5);
+  background:var(--ink); color:var(--gold);
+  font-family:"Press Start 2P", monospace; font-size:calc(var(--u)*1.5);
+  padding:calc(var(--u)*1) calc(var(--u)*1.5);
+  border:var(--u) solid var(--paper);
+}
+/* With JS off the canvases can never be painted — drop the empty frames
+   rather than showing black boxes. The full essay still reads as HTML. */
 .no-js .screen{ display:none; }
 .no-js .stage-inner{ grid-template-columns:1fr !important; max-width:760px; }
 
 /* ---------- text panel ---------- */
 .panel{
-  background:var(--zone-panel);
+  background-color:var(--zone-panel);
+  background-image:radial-gradient(var(--halftone) 1px, transparent 1.3px);
+  background-size:calc(var(--u)*2.5) calc(var(--u)*2.5);
   padding:calc(var(--u)*6);
-  box-shadow:
-     0 0 0 var(--u) var(--ink),
-     0 0 0 calc(var(--u)*2) var(--zone-edge),
-     calc(var(--u)*3) calc(var(--u)*3) 0 calc(var(--u)*2) rgba(0,0,0,.4);
+  border:calc(var(--u)*1.5) solid var(--ink);
+  box-shadow:calc(var(--u)*2.5) calc(var(--u)*2.5) 0 0 rgba(20,16,28,.45);
 }
 @media (max-width:600px){ .panel{ padding:calc(var(--u)*4); } }
 
 .level-tag{
   display:inline-block;
   font-family:"Press Start 2P", monospace;
-  font-size:calc(var(--u)*1.8);
-  line-height:1.6;
+  font-size:calc(var(--u)*1.8); line-height:1.6;
   color:var(--paper); background:var(--ink);
   padding:calc(var(--u)*2) calc(var(--u)*2.5);
   margin:0 0 calc(var(--u)*5);
@@ -218,9 +264,7 @@ blockquote{
   padding-left:calc(var(--u)*4);
   border-left:calc(var(--u)*2) solid var(--zone-edge);
   font-size:clamp(1.15rem, 2.2vw, 1.6rem);
-  line-height:1.55;
-  color:var(--zone-ink);
-  font-weight:600;
+  line-height:1.55; color:var(--zone-ink); font-weight:600;
 }
 blockquote + blockquote{ margin-top:calc(var(--u)*-2); }
 blockquote cite{
@@ -229,34 +273,66 @@ blockquote cite{
   font-size:calc(var(--u)*1.4); font-style:normal;
   color:var(--zone-edge); letter-spacing:.02em;
 }
-
 .commentary{
   margin:0;
   font-family:ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size:clamp(.98rem, 1.35vw, 1.08rem);
-  line-height:1.75;
-  color:var(--ink);
+  line-height:1.75; color:var(--ink);
 }
 .commentary + .commentary{ margin-top:1em; }
 .commentary strong{ color:var(--zone-ink); }
 
-/* ---------- title screen ---------- */
-#s0 .stage-inner{ grid-template-columns:1fr; max-width:920px; text-align:center; }
-#s0 .panel{ background:var(--ink); color:var(--paper); }
+/* ---------- title: a cartoon TV set ---------- */
+#s0 .stage-inner{ grid-template-columns:1fr; max-width:920px; text-align:center; justify-items:center; }
+#s0 .panel{ background-color:var(--ink); color:var(--paper); background-image:none; width:100%; }
+
+.tv-wrap{
+  position:relative; display:inline-block; max-width:100%;
+  padding-top:calc(var(--u)*8);
+}
+.tv{
+  position:relative;
+  background:#c4632f;
+  padding:calc(var(--u)*4) calc(var(--u)*4) calc(var(--u)*7);
+  border:calc(var(--u)*1.5) solid var(--ink);
+  box-shadow:calc(var(--u)*3) calc(var(--u)*3) 0 0 rgba(20,16,28,.5);
+  clip-path:polygon(
+    calc(var(--u)*3) 0, calc(100% - var(--u)*3) 0,
+    100% calc(var(--u)*3), 100% calc(100% - var(--u)*3),
+    calc(100% - var(--u)*3) 100%, calc(var(--u)*3) 100%,
+    0 calc(100% - var(--u)*3), 0 calc(var(--u)*3));
+  max-width:100%;
+}
+.tv .screen{ box-shadow:none; border-width:calc(var(--u)*1.5); background:var(--ink); }
+.tv-knobs{
+  position:absolute; left:0; right:0; bottom:calc(var(--u)*1.5);
+  display:flex; gap:calc(var(--u)*2); justify-content:center; align-items:center;
+}
+.tv-knobs i{ width:calc(var(--u)*3); height:calc(var(--u)*3); background:var(--ink); display:block; }
+.tv-knobs i:nth-child(2){ background:var(--gold); }
+.tv-knobs b{
+  width:calc(var(--u)*14); height:calc(var(--u)*1.5);
+  background:var(--ink); display:block; margin-left:calc(var(--u)*2);
+}
+.tv-ant{ position:absolute; top:0; left:50%; width:calc(var(--u)*20); height:calc(var(--u)*8);
+  transform:translateX(-50%); }
+.tv-ant i{
+  position:absolute; bottom:0; width:calc(var(--u)*1.25); height:calc(var(--u)*8);
+  background:var(--ink); transform-origin:bottom center;
+}
+.tv-ant i:first-child{ left:calc(var(--u)*4); transform:rotate(-28deg); }
+.tv-ant i:last-child{ right:calc(var(--u)*4); transform:rotate(28deg); }
+
 .title-main{
   font-family:"Press Start 2P", monospace;
-  font-size:clamp(1.7rem, 7vw, 4rem);
-  line-height:1.25; margin:0;
+  font-size:clamp(1.7rem, 7vw, 4rem); line-height:1.25; margin:0;
   color:var(--gold);
-  text-shadow:
-     var(--u) var(--u) 0 var(--dust-3),
-     calc(var(--u)*2) calc(var(--u)*2) 0 var(--ink);
+  text-shadow:var(--u) var(--u) 0 var(--dust-3), calc(var(--u)*2) calc(var(--u)*2) 0 var(--ink);
 }
 .title-sub{
   font-family:"Press Start 2P", monospace;
   font-size:clamp(.62rem, 1.7vw, .82rem);
-  line-height:2.2; color:var(--gran-0);
-  margin:calc(var(--u)*6) 0 0;
+  line-height:2.2; color:var(--gran-0); margin:calc(var(--u)*6) 0 0;
 }
 .title-epigraph{
   margin:calc(var(--u)*7) auto 0; max-width:34ch;
@@ -265,21 +341,19 @@ blockquote cite{
 .press-start{
   margin-top:calc(var(--u)*8);
   font-family:"Press Start 2P", monospace;
-  font-size:clamp(.6rem,1.6vw,.8rem);
-  color:var(--gold);
+  font-size:clamp(.6rem,1.6vw,.8rem); color:var(--gold);
   animation:blink 1.1s steps(1,end) infinite;
 }
 @keyframes blink{ 0%,49%{opacity:1} 50%,100%{opacity:0} }
 @media (prefers-reduced-motion: reduce){ .press-start{ animation:none; } }
 
-/* ---------- results screen ---------- */
+/* ---------- results ---------- */
 #s12 .stage-inner{ grid-template-columns:1fr; max-width:940px; }
 .results-title{
   font-family:"Press Start 2P", monospace;
   font-size:clamp(1rem,3vw,1.7rem); line-height:1.5;
   color:var(--gold); background:var(--ink);
-  margin:0 0 calc(var(--u)*6); padding:calc(var(--u)*4);
-  text-align:center;
+  margin:0 0 calc(var(--u)*6); padding:calc(var(--u)*4); text-align:center;
 }
 .tally{ list-style:none; margin:0 0 calc(var(--u)*7); padding:0; }
 .tally li{
@@ -287,44 +361,41 @@ blockquote cite{
   gap:calc(var(--u)*3); align-items:baseline;
   padding:calc(var(--u)*2.5) 0;
   border-bottom:var(--u) solid var(--dust-2);
-  font-size:clamp(.95rem,1.7vw,1.12rem);
-  line-height:1.5;
+  font-size:clamp(.95rem,1.7vw,1.12rem); line-height:1.5;
 }
 .tally li b{
   font-family:"Press Start 2P", monospace;
   font-size:calc(var(--u)*1.4); color:var(--dust-3);
   font-weight:400; letter-spacing:.02em;
 }
-@media (max-width:640px){
-  .tally li{ grid-template-columns:1fr; gap:calc(var(--u)*1); }
-}
+@media (max-width:640px){ .tally li{ grid-template-columns:1fr; gap:calc(var(--u)*1); } }
 .thesis{
-  background:var(--ink); color:var(--paper);
-  padding:calc(var(--u)*6);
+  background:var(--ink); color:var(--paper); padding:calc(var(--u)*6);
   font-size:clamp(1.05rem,2.1vw,1.35rem); line-height:1.6;
 }
 .thesis p{ margin:0 0 1em; }
 .thesis p:last-child{ margin:0; color:var(--gold); }
 
-/* ---------- footer ---------- */
 footer{
   position:relative; z-index:10;
   background:var(--ink); color:var(--gran-1);
-  padding:calc(var(--u)*8) calc(var(--u)*5);
-  text-align:center;
+  padding:calc(var(--u)*8) calc(var(--u)*5); text-align:center;
   font-family:ui-sans-serif, system-ui, sans-serif;
   font-size:.85rem; line-height:1.9;
 }
 footer strong{ color:var(--paper); }
 
-/* ---------- reveal ---------- */
-@keyframes pop{ from{ transform:translateY(calc(var(--u)*5)); } to{ transform:none; } }
-
-/* Transform only, never opacity: if the animation is throttled or frozen
-   (background tab, reduced motion, dead JS) the essay is still fully readable.
-   A reveal must never be able to hide the content it is revealing. */
-.js-reveal .stage.seen .screen{ animation:pop .28s steps(5,end) both; }
-.js-reveal .stage.seen .panel { animation:pop .28s steps(5,end) .05s both; }
+/* ---------- reveal ----------
+   Transform only, never opacity: if the animation is throttled or frozen
+   (background tab, reduced motion, dead JS) the essay is still readable.
+   A reveal must never be able to hide the content it reveals. */
+@keyframes pop{
+  from{ transform:translateY(calc(var(--u)*5)) rotate(0deg); }
+  to  { transform:translateY(0) rotate(var(--tilt,0deg)); }
+}
+.screen{ transform:rotate(var(--tilt,0deg)); }
+.js-reveal .stage.seen .screen{ animation:pop .34s steps(6,end) both; }
+.js-reveal .stage.seen .panel { animation:pop .34s steps(6,end) .06s both; }
 @media (prefers-reduced-motion: reduce){
   .js-reveal .stage .panel, .js-reveal .stage .screen{ animation:none; }
 }
@@ -334,6 +405,7 @@ footer strong{ color:var(--paper); }
 
 <div id="sky-fallback"></div>
 <canvas id="sky" aria-hidden="true"></canvas>
+<canvas id="clouds" aria-hidden="true"></canvas>
 <div id="crt" aria-hidden="true"></div>
 
 <header id="hud" aria-hidden="true">
@@ -345,6 +417,7 @@ footer strong{ color:var(--paper); }
     <div class="hud-row"><span class="hud-key">BODY</span><span class="hud-val" id="hud-body">100%</span></div>
     <div class="meter body" id="meter-body-wrap"><i id="meter-body"></i></div>
   </div>
+  <canvas id="route" width="52" height="72"></canvas>
   <span class="stage-name" id="hud-stage">TITLE SCREEN</span>
   <span class="hint">SCROLL TO CLIMB</span>
 </header>
@@ -356,7 +429,13 @@ footer strong{ color:var(--paper); }
 <!-- ============ 0 · TITLE ============ -->
 <section class="stage" id="s0" data-alt="0" data-body="100" data-name="TITLE SCREEN" data-scene="title">
   <div class="stage-inner">
-    <div class="screen"><canvas width="192" height="108" data-scene="title" aria-label="Pixel art: a lone figure with a crutch at the foot of a vast mountain."></canvas></div>
+    <div class="tv-wrap">
+      <div class="tv-ant" aria-hidden="true"><i></i><i></i></div>
+      <div class="tv">
+      <div class="screen"><canvas width="192" height="108" data-scene="title" aria-label="Pixel art: a lone figure with a crutch at the foot of a vast mountain."></canvas></div>
+      <div class="tv-knobs" aria-hidden="true"><i></i><i></i><b></b></div>
+      </div>
+    </div>
     <div class="panel">
       <h1 class="title-main">THE CLIMB</h1>
       <p class="title-sub">
@@ -554,6 +633,7 @@ footer strong{ color:var(--paper); }
 </footer>
 
 <script>
+
 (function(){
 "use strict";
 
@@ -626,8 +706,8 @@ SPR.crutch = [
 
 SPR.villager = [
 '...3333...','..333333..','..311113..','..310013..','..311113..',
-'...1111...','...5555...','..555555..','.15555551.','.15555551.',
-'..555555..','...6666...','..66..66..','..66..66..','..66..66..',
+'...1111...','...4444...','..444444..','.14444441.','.14444441.',
+'..445544..','...6666...','..66..66..','..66..66..','..66..66..',
 '..77..77..'];
 
 SPR.mother = [
@@ -729,22 +809,57 @@ var F = {
    ================================================================== */
 function rect(g,x,y,w,h,c){ if(!c) return; g.fillStyle=c; g.fillRect(x|0,y|0,w|0,h|0); }
 
-function spr(g,map,x,y,opt){
-  opt = opt || {};
-  var flip = opt.flip, remap = opt.remap || {}, alpha = opt.alpha;
-  if(alpha != null){ g.save(); g.globalAlpha = alpha; }
-  for(var j=0;j<map.length;j++){
-    var row = map[j], w = row.length;
-    for(var i=0;i<w;i++){
-      var ch = row.charAt(i);
-      if(ch === '.') continue;
-      var c = remap[ch] || PAL[ch];
-      if(!c) continue;
-      g.fillStyle = c;
-      g.fillRect((x + (flip ? (w-1-i) : i))|0, (y+j)|0, 1, 1);
+/* Every sprite gets an id so it can be cached once it has been rendered
+   with its outline and palette remap — outlining costs 9 passes, so it is
+   done a single time per variant rather than on every animation frame. */
+Object.keys(SPR).forEach(function(k){ SPR[k].__id = k; });
+
+/* Cartoon ink line: everything with a character or a silhouette gets one. */
+var OUTLINED = {
+  able:1, ableHealed:1, ableFlute:1, ableClimb:1, ableHang:1, crutch:1,
+  villager:1, mother:1, witch:1, hart:1, falcon:1, owl:1,
+  cottage:1, pine:1, cairn:1, kettle:1, flute:1, skull:1
+};
+var sprCache = {};
+
+function renderSprite(map,opt){
+  var w=map[0].length, h=map.length, o = opt.outline ? 1 : 0;
+  var c=document.createElement('canvas');
+  c.width=w+o*2; c.height=h+o*2;
+  var g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+  var remap=opt.remap||{}, flip=opt.flip;
+  function put(dx,dy,force){
+    for(var j=0;j<h;j++){
+      var row=map[j];
+      for(var i=0;i<w;i++){
+        var ch=row.charAt(i); if(ch==='.') continue;
+        var col = force || remap[ch] || PAL[ch]; if(!col) continue;
+        g.fillStyle=col;
+        g.fillRect((flip?(w-1-i):i)+dx, j+dy, 1, 1);
+      }
     }
   }
-  if(alpha != null) g.restore();
+  if(o){
+    /* 4-direction only. An 8-direction outline closes the diagonals too and
+       swallows the interior of a 10x16 sprite, turning faces into blobs. */
+    var oc = (opt.outline===true) ? '#241d33' : opt.outline;
+    put(0,1,oc); put(2,1,oc); put(1,0,oc); put(1,2,oc);
+  }
+  put(o,o,null);
+  return c;
+}
+
+function spr(g,map,x,y,opt){
+  opt = opt || {};
+  var outline = (opt.outline === undefined) ? !!OUTLINED[map.__id] : opt.outline;
+  var key = (map.__id||'?')+'|'+(opt.flip?1:0)+'|'+(outline?1:0)+'|'+
+            (opt.remap ? JSON.stringify(opt.remap) : '');
+  var c = sprCache[key];
+  if(!c){ c = renderSprite(map, {flip:opt.flip, remap:opt.remap, outline:outline}); sprCache[key]=c; }
+  var o = outline ? 1 : 0;
+  if(opt.alpha != null){ g.save(); g.globalAlpha = opt.alpha; }
+  g.drawImage(c, (x-o)|0, (y-o)|0);
+  if(opt.alpha != null) g.restore();
 }
 
 function text(g,str,x,y,c,sp){
@@ -764,13 +879,43 @@ function text(g,str,x,y,c,sp){
 }
 function textW(str,sp){ sp=(sp==null)?1:sp; return String(str).length*(3+sp)-sp; }
 
-/* text with a dithered dark backing plate, so captions stay readable
-   over cliffs, quilted fields and rain without breaking the pixel look */
+/* narration: a solid plate so captions stay readable over busy art */
 function caption(g,str,x,y,c){
   var w = textW(str);
   rect(g, x-2, y-2, w+4, 9, '#14101c');
   rect(g, x-2, y-2, w+4, 1, '#2a2436');
   text(g, str, x, y, c);
+}
+
+/* dialogue: a comic speech balloon with a tail */
+function balloon(g,lines,x,y,tailX,tailDir){
+  var w=0, i;
+  for(i=0;i<lines.length;i++) w = Math.max(w, textW(lines[i]));
+  var bw = w+9, bh = lines.length*7+7, d = tailDir || 1;
+  if(tailX != null){
+    for(i=0;i<7;i++) rect(g, tailX+d*i-1, y+bh-1+i, Math.max(1,8-i), 1, '#14101c');
+  }
+  rect(g, x+1, y,   bw-2, bh,   '#14101c');   /* cut-corner outline */
+  rect(g, x,   y+1, bw,   bh-2, '#14101c');
+  if(tailX != null){
+    for(i=0;i<5;i++) rect(g, tailX+d*i, y+bh-2+i, Math.max(1,5-i), 1, '#f4ecd8');
+  }
+  rect(g, x+2, y+2, bw-4, bh-4, '#f4ecd8');
+  rect(g, x+1, y+3, bw-2, bh-6, '#f4ecd8');
+  rect(g, x+3, y+1, bw-6, bh-2, '#f4ecd8');
+  for(i=0;i<lines.length;i++) text(g, lines[i], x+4, y+5+i*7, '#14101c');
+  return bh;
+}
+
+/* comic impact star */
+function burst(g,cx,cy,r,c1,c2){
+  for(var a=0;a<20;a++){
+    var ang = a/20*Math.PI*2, rr = (a%2) ? r*0.55 : r;
+    for(var t=0;t<rr;t++){
+      rect(g, Math.round(cx+Math.cos(ang)*t), Math.round(cy+Math.sin(ang)*t), 1, 1,
+           t > rr*0.72 ? c2 : c1);
+    }
+  }
 }
 
 /* deterministic hash — no Math.random anywhere, so art is stable */
@@ -782,7 +927,6 @@ function hsh(x,y,s){
 
 var BAYER = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
 
-/* dithered vertical ramp through a list of colours */
 function vramp(g,x,y,w,h,stops){
   var n = stops.length - 1;
   for(var j=0;j<h;j++){
@@ -796,8 +940,6 @@ function vramp(g,x,y,w,h,stops){
     }
   }
 }
-
-/* dithered flat wash of c2 over c1 at strength t */
 function wash(g,x,y,w,h,c,t){
   g.fillStyle = c;
   for(var j=0;j<h;j++) for(var k=0;k<w;k++){
@@ -805,8 +947,12 @@ function wash(g,x,y,w,h,c,t){
     if(t > th) g.fillRect(x+k, y+j, 1, 1);
   }
 }
+/* ben-day dots */
+function halftone(g,x,y,w,h,c,step){
+  for(var j=0;j<h;j+=step) for(var i=((j/step)&1)?Math.floor(step/2):0;i<w;i+=step)
+    rect(g,x+i,y+j,1,1,c);
+}
 
-/* jagged mountain, filled per-column so every edge is a hard pixel step */
 function peak(g,cx,peakY,baseY,halfW,c,cap,capY,seed){
   for(var x=cx-halfW; x<=cx+halfW; x++){
     if(x<0 || x>=192) continue;
@@ -819,33 +965,24 @@ function peak(g,cx,peakY,baseY,halfW,c,cap,capY,seed){
     if(cap && y < capY) rect(g,x,y,1,Math.min(capY,baseY)-y,cap);
   }
 }
-
-/* rolling ridge line */
 function ridge(g,y0,amp,c,seed,baseY){
   for(var x=0;x<192;x++){
-    var y = y0
-      + Math.sin((x+seed*13)/23)*amp
-      + Math.sin((x+seed*7)/9)*amp*0.4
-      + Math.floor(hsh(x,1,seed)*2);
+    var y = y0 + Math.sin((x+seed*13)/23)*amp + Math.sin((x+seed*7)/9)*amp*0.4
+              + Math.floor(hsh(x,1,seed)*2);
     y = Math.round(y);
     rect(g,x,y,1,baseY-y,c);
   }
 }
-
 function ground(g,y0,stops){ vramp(g,0,y0,192,108-y0,stops); }
-
 function cracks(g,y0,c,seed){
   for(var n=0;n<14;n++){
     var x = Math.floor(hsh(n,3,seed)*192);
     var y = y0 + Math.floor(hsh(n,4,seed)*(106-y0));
     var len = 4 + Math.floor(hsh(n,5,seed)*12);
     var dir = hsh(n,6,seed) > 0.5 ? 1 : -1;
-    for(var k=0;k<len;k++){
-      rect(g,x+k,y+Math.round(Math.sin(k/3)*dir),1,1,c);
-    }
+    for(var k=0;k<len;k++) rect(g,x+k,y+Math.round(Math.sin(k/3)*dir),1,1,c);
   }
 }
-
 function stars(g,count,maxY,seed){
   for(var n=0;n<count;n++){
     var x = Math.floor(hsh(n,7,seed)*192);
@@ -864,6 +1001,7 @@ var SC = {};
 SC.title = {
   bg:function(g){
     vramp(g,0,0,W,72,[CO.dust2,CO.dust1,CO.dust0]);
+    halftone(g,0,0,W,40,'#e0b878',6);
     var sun = 46;
     for(var j=-7;j<=7;j++) for(var i=-7;i<=7;i++)
       if(i*i+j*j<=49) rect(g,140+i,sun+j,1,1,'#fff3cf');
@@ -885,13 +1023,15 @@ SC.title = {
 SC.village = {
   bg:function(g){
     vramp(g,0,0,W,60,[CO.dust1,CO.dust0,'#fff6e0']);
+    halftone(g,0,0,W,34,'#e8c98d',5);
     ridge(g,52,4,CO.gran1,3,66);
     peak(g,150,6,66,58,CO.gran2,CO.gran0,20,4);
     vramp(g,0,66,W,18,[CO.dust2,CO.dust1]);
     ground(g,84,[CO.dust3,'#a8763f',CO.dust2]);
     cracks(g,88,'#6b4a2b',2);
-    spr(g,SPR.cottage,6,66,{remap:{k:'#9a6f38', l:'#5f4326', b:'#d8c3a0', c:'#5f4326', '9':'#5f4326'}});
-    spr(g,SPR.cottage,150,66,{remap:{k:'#9a6f38', l:'#5f4326', b:'#d8c3a0', c:'#5f4326', '9':'#5f4326'}});
+    var HUT = {k:'#9a6f38', l:'#5f4326', b:'#d8c3a0', c:'#5f4326', '9':'#5f4326'};
+    spr(g,SPR.cottage,6,66,{remap:HUT});
+    spr(g,SPR.cottage,150,66,{remap:HUT});
     spr(g,SPR.pine,42,68,{remap:DEAD});
     spr(g,SPR.pine,136,68,{remap:DEAD});
     rect(g,0,84,192,1,'#7a5330');
@@ -913,29 +1053,24 @@ SC.mother = {
     vramp(g,0,0,W,88,['#4a3f57','#3a3145','#2f2839']);
     for(var x=0;x<192;x+=24) rect(g,x,0,2,88,'#2a2436');
     rect(g,0,12,192,2,'#2a2436');
-    /* window onto the drought outside */
-    rect(g,12,16,38,32,'#1b1730');
-    rect(g,14,18,34,28,CO.dust1);
-    rect(g,14,34,34,12,CO.dust2);
-    rect(g,14,42,34,4,'#8a5f38');
-    rect(g,30,18,2,28,'#1b1730');
-    rect(g,14,30,34,2,'#1b1730');
-    /* shelf */
+    rect(g,10,16,36,30,'#1b1730');
+    rect(g,12,18,32,26,CO.dust1);
+    rect(g,12,34,32,10,CO.dust2);
+    rect(g,12,40,32,4,'#8a5f38');
+    rect(g,27,18,2,26,'#1b1730');
+    rect(g,12,30,32,2,'#1b1730');
     rect(g,58,24,44,2,'#5c4a2e');
     rect(g,62,17,5,7,'#7d8895'); rect(g,70,18,5,6,'#9a8557'); rect(g,79,16,6,8,'#6f5e3c');
-    /* fireplace */
     rect(g,106,16,86,72,'#5c5a66');
     for(var j=0;j<72;j+=6) for(var i=0;i<86;i+=10)
       rect(g,107+i+((j/6)&1?5:0),17+j,8,4, hsh(i,j,4)>0.5?'#6e6c78':'#4e4c58');
     rect(g,114,36,66,6,'#3f3d47');
     rect(g,118,42,60,46,'#14101c');
     rect(g,112,84,74,4,'#3a3145');
-    /* floor */
     ground(g,88,['#4a3b2a','#3a2e21']);
     for(var x2=0;x2<192;x2+=11) rect(g,x2,88,1,20,'#2f251b');
-    /* table */
-    rect(g,6,76,38,4,'#6b4f2e');
-    rect(g,9,80,3,10,'#4f3a21'); rect(g,38,80,3,10,'#4f3a21');
+    rect(g,4,76,36,4,'#6b4f2e');
+    rect(g,7,80,3,10,'#4f3a21'); rect(g,35,80,3,10,'#4f3a21');
   },
   fg:function(g,f){
     var fl=(f>>1)&1;
@@ -951,7 +1086,7 @@ SC.mother = {
     spr(g,SPR.mother,56,70);
     spr(g,SPR.crutch,72,72);
     spr(g,SPR.able,76,70);
-    caption(g,'"SO STRONG, THOSE HANDS O YOURS"',5,99,'#e0d5bd');
+    balloon(g,["THERE'D BE NO","WORK FOR YOU"],46,42,60,1);
   }
 };
 
@@ -959,7 +1094,6 @@ SC.decision = {
   bg:function(g){
     vramp(g,0,0,W,70,[CO.night,CO.strm3,CO.strm2,'#4c4a80']);
     stars(g,60,58,11);
-    /* moon */
     for(var j=-5;j<=5;j++) for(var i=-5;i<=5;i++)
       if(i*i+j*j<=25) rect(g,32+i,18+j,1,1,'#e8e6ff');
     for(var j2=-4;j2<=4;j2++) for(var i2=-4;i2<=4;i2++)
@@ -970,24 +1104,26 @@ SC.decision = {
     spr(g,SPR.cottage,4,62,{remap:DARK});
   },
   fg:function(g,f){
-    spr(g,SPR.cairn,26,67,{remap:{b:'#5a5f74',a:'#7d84a0',c:'#33364a'}});
-    spr(g,SPR.cairn,64,67,{remap:{b:'#5a5f74',a:'#7d84a0',c:'#33364a'}});
-    spr(g,SPR.cairn,102,67,{remap:{b:'#5a5f74',a:'#7d84a0',c:'#33364a'}});
+    var CN = {b:'#5a5f74',a:'#7d84a0',c:'#33364a'};
+    spr(g,SPR.cairn,26,67,{remap:CN});
+    spr(g,SPR.cairn,64,67,{remap:CN});
+    spr(g,SPR.cairn,102,67,{remap:CN});
     caption(g,'THREE FOOLS',24,91,'#b8bce0');
     caption(g,'NONE REACHED THE PEAK',24,100,'#8e93b8');
-    if(((f>>2)&3)===0) spr(g,SPR.owl,168,52,{remap:{'3':'#4a4470'}});
-    else spr(g,SPR.owl,168,52,{remap:{'3':'#3c3760','d':'#9a95c0'}});
+    spr(g,SPR.owl,168,52,{remap:(((f>>2)&3)===0)?{'3':'#4a4470'}:{'3':'#3c3760'}});
   }
 };
 
 SC.gauntlet = {
   bg:function(g){
     vramp(g,0,0,W,58,[CO.dust2,CO.dust1,CO.dust0]);
+    halftone(g,0,0,W,30,'#e8c98d',5);
     ridge(g,50,3,CO.gran1,8,64);
     vramp(g,0,64,W,22,[CO.dust2,'#b98a4c']);
     ground(g,86,['#8a5f38','#a8763f','#c99b58']);
-    spr(g,SPR.cottage,-2,64,{remap:{k:'#9a6f38',l:'#5f4326',b:'#d8c3a0',c:'#5f4326','9':'#5f4326',q:'#3a2e21'}});
-    spr(g,SPR.cottage,168,64,{remap:{k:'#9a6f38',l:'#5f4326',b:'#d8c3a0',c:'#5f4326','9':'#5f4326',q:'#3a2e21'}});
+    var HUT={k:'#9a6f38',l:'#5f4326',b:'#d8c3a0',c:'#5f4326','9':'#5f4326',q:'#3a2e21'};
+    spr(g,SPR.cottage,-2,64,{remap:HUT});
+    spr(g,SPR.cottage,168,64,{remap:HUT});
     for(var x=0;x<192;x+=8) rect(g,x,96,5,1,'#7a5330');
     cracks(g,90,'#6b4a2b',5);
   },
@@ -999,10 +1135,7 @@ SC.gauntlet = {
     spr(g,SPR.villager,152,70+s,{flip:true});
     spr(g,SPR.crutch,36,70);
     spr(g,SPR.able,40,68);
-    var jig = s?0:1;
-    text(g,'CURSES',96+jig,30,CO.blood);
-    text(g,'BEGET',124,40,CO.blood);
-    text(g,'CURSES',146-jig,50,CO.blood);
+    balloon(g,['CURSES BEGET','CURSES!'],96,26,112,1);
     caption(g,'...ONLY WORDS',34,99,'#f2dcaa');
   }
 };
@@ -1012,21 +1145,18 @@ SC.foothills = {
     vramp(g,0,0,W,82,['#9aa7b5','#c9c3b0','#e8c98d','#f2dcaa']);
     peak(g,132,-14,82,86,CO.gran2,null,0,3);
     peak(g,40,10,82,52,CO.gran1,null,0,6);
-    /* slope rising left-to-right */
     for(var x=0;x<192;x++){
       var y = 78 - Math.round(x*0.24) + Math.floor(hsh(x,2,12)*2);
       rect(g,x,y,1,108-y,'#8d7a4e');
       rect(g,x,y,1,2,'#a89463');
     }
     cracks(g,72,'#5f4326',8);
-    /* dried stubble of former crops */
     for(var n=0;n<150;n++){
       var sx=Math.floor(hsh(n,60,4)*192);
       var sy=78-Math.round(sx*0.24)+2+Math.floor(hsh(n,61,4)*24);
       if(sy>106) continue;
       rect(g,sx,sy,1,2,hsh(n,62,4)>0.5?'#a89463':'#7a6538');
     }
-    /* two short stretches of ruined stone fence */
     [[24,52],[112,64]].forEach(function(seg){
       for(var x2=seg[0]; x2<seg[0]+seg[1]; x2+=5){
         var fy = 78 - Math.round(x2*0.24) - 5;
@@ -1040,8 +1170,7 @@ SC.foothills = {
     spr(g,SPR.pine,150,26,{remap:DRY});
     spr(g,SPR.pine,168,30,{remap:DEAD});
     spr(g,SPR.skull,30,78);
-    var b=(f>>1)&1;
-    var ax=70, ay=78-Math.round(ax*0.24)-18;
+    var b=(f>>1)&1, ax=70, ay=78-Math.round(ax*0.24)-18;
     spr(g,SPR.crutch,ax-5,ay+3+b);
     spr(g,SPR.able,ax,ay+b);
     caption(g,'AND CLIMBED',6,99,'#f2dcaa');
@@ -1058,14 +1187,13 @@ SC.dawn = {
     ridge(g,66,3,'#5c5a70',9,80);
     ground(g,80,['#5a5340','#43402f']);
     for(var k=0;k<7;k++) spr(g,SPR.pine,8+k*27,60,{remap:{f:'#3f4a52','9':'#2f2a26'}});
-    /* mist bands */
     wash(g,0,58,192,10,'#cfd8e8',0.45);
     wash(g,0,66,192,8,'#cfd8e8',0.30);
     wash(g,0,72,192,8,'#cfd8e8',0.16);
   },
   fg:function(g,f){
     spr(g,SPR.pine,140,54,{remap:GNARL});
-    spr(g,SPR.hart,128,62);
+    spr(g,SPR.hart,128,62,{remap:{'3':'#9a6a44','8':'#c9a05c','7':'#4e4030'}});
     var b=(f>>1)&1;
     spr(g,SPR.crutch,34,66+b);
     spr(g,SPR.able,38,64+b);
@@ -1075,14 +1203,12 @@ SC.dawn = {
 
 SC.wall = {
   bg:function(g){
-    /* sheer granite filling the frame */
     vramp(g,0,0,W,H,['#8d99a8','#66717f','#4d5764','#3c4552']);
     for(var n=0;n<300;n++){
       var x=Math.floor(hsh(n,20,3)*192), y=Math.floor(hsh(n,21,3)*108);
       var w=1+Math.floor(hsh(n,22,3)*4), h=1+Math.floor(hsh(n,23,3)*3);
       rect(g,x,y,w,h, hsh(n,24,3)>0.5 ? '#7d8895' : '#3c4552');
     }
-    /* vertical fissures — the "folds in its skin" */
     for(var m=0;m<7;m++){
       var cx=12+m*27, yy=0;
       while(yy<108){
@@ -1092,15 +1218,12 @@ SC.wall = {
         yy+=3;
       }
     }
-    /* sky sliver at the top */
     vramp(g,0,0,W,10,['#b9c2cc','#8d99a8']);
   },
   fg:function(g,f){
     var b=(f>>1)&1;
     spr(g,SPR.ableClimb,84,34-b);
-    /* the crutch, thrown, falling away and never returning */
-    var t=(f%40)/40;
-    var cy=44+t*80, cx2=58-t*14;
+    var t=(f%40)/40, cy=44+t*80, cx2=58-t*14;
     if(cy<118){
       spr(g,SPR.crutch,cx2,cy,{alpha:1-t*0.5});
       rect(g,cx2+2,cy-6,1,5,'#8d99a8');
@@ -1113,7 +1236,6 @@ SC.wall = {
 SC.fall = {
   bg:function(g){
     vramp(g,0,0,W,H,['#9aa7b5','#c3cbd4','#d5dde5','#b9c2cc']);
-    /* the drop: farm quilt far below on the right */
     for(var y=68;y<108;y++){
       var t=(y-68)/40;
       for(var x=64;x<192;x++){
@@ -1126,7 +1248,6 @@ SC.fall = {
     }
     for(var x2=64;x2<192;x2+=13) rect(g,x2,68,1,40,'#6f5e3c');
     for(var y2=72;y2<108;y2+=7) rect(g,64,y2,128,1,'#6f5e3c');
-    /* the cliff face on the left */
     for(var y3=0;y3<108;y3++){
       var edge = 60 + Math.round(Math.sin(y3/9)*4) + Math.floor(hsh(0,y3,17)*3);
       vramp(g,0,y3,edge,1,['#4d5764','#66717f']);
@@ -1138,11 +1259,12 @@ SC.fall = {
     }
   },
   fg:function(g,f){
+    if((f>>1)&1) burst(g,53,31,10,'#ffd257','#fff3cf');
+    else         burst(g,53,31,8,'#ffe08a','#fff3cf');
     spr(g,SPR.ableHang,48,30);
     rect(g,52,28,1,3,CO.blood);
-    /* the falcon, circling */
     var a=(f%48)/48*Math.PI*2;
-    spr(g,SPR.falcon, 112+Math.round(Math.cos(a)*26), 22+Math.round(Math.sin(a)*9));
+    spr(g,SPR.falcon, 118+Math.round(Math.cos(a)*24), 20+Math.round(Math.sin(a)*8));
     caption(g,'A SPIDER CLIMBING GLASS',72,89,'#e2e7ec');
     caption(g,'HIS LIFE AT HIS FINGERTIPS',72,99,'#ff9a9a');
   }
@@ -1153,7 +1275,6 @@ SC.summit = {
     vramp(g,0,0,W,76,['#3b3a6e','#6a72b8','#9aa7b5','#c3cbd4']);
     stars(g,26,26,21);
     ridge(g,52,5,'#5c6478',5,76);
-    /* bald pate of the mountain */
     for(var x=0;x<192;x++){
       var y=70+Math.round(Math.sin(x/29)*4)+Math.floor(hsh(x,40,2)*2);
       rect(g,x,y,1,108-y,'#8d99a8');
@@ -1163,36 +1284,31 @@ SC.summit = {
       var sx=Math.floor(hsh(n,41,9)*192), sy=76+Math.floor(hsh(n,42,9)*30);
       rect(g,sx,sy,2+Math.floor(hsh(n,43,9)*4),2,'#66717f');
     }
-    spr(g,SPR.cottage,110,52,{remap:ROT});
-    for(var m=0;m<5;m++) rect(g,116+m*9,52+Math.floor(hsh(m,44,3)*4),3,2,'#3b3a6e');
-    spr(g,SPR.pine,6,56,{remap:GNARL});
+    spr(g,SPR.cottage,108,52,{remap:ROT});
+    for(var m=0;m<5;m++) rect(g,114+m*9,52+Math.floor(hsh(m,44,3)*4),3,2,'#3b3a6e');
     spr(g,SPR.pine,88,58,{remap:GNARL});
-    /* neglected vegetable patch */
-    for(var v=0;v<9;v++) rect(g,60+v*4,84,2,3,'#5c6a3c');
+    for(var v=0;v<7;v++) rect(g,112+v*4,86,2,3,'#5c6a3c');
   },
   fg:function(g,f){
-    spr(g,SPR.cairn,32,74);
+    spr(g,SPR.cairn,158,74);
     var s=(f>>2)&1;
-    spr(g,SPR.witch,74,70-s);
-    spr(g,SPR.crutch,100,74);
-    spr(g,SPR.able,104,72);
-    caption(g,'"I AM ABLE"',6,89,'#ffd257');
-    caption(g,'"THAT IS A GOOD ANSWER"',6,99,'#e2e7ec');
+    spr(g,SPR.witch,24,70-s);
+    spr(g,SPR.crutch,50,74);
+    spr(g,SPR.able,54,72);
+    balloon(g,['I AM ABLE'],48,44,60,1);
+    caption(g,'"THAT ... IS A GOOD ANSWER"',6,99,'#e2e7ec');
   }
 };
 
 SC.rain = {
   bg:function(g){
     vramp(g,0,0,W,H,['#1e1c3a','#3b3a6e','#6a72b8','#5c6a5a','#4a6a42']);
-    /* fields below going green */
     for(var y=84;y<108;y++) for(var x=0;x<192;x++){
       var q=(Math.floor(x/9)+Math.floor(y/4))&1;
       rect(g,x,y,1,1, q?'#4a7a3e':'#3d6636');
     }
     for(var x2=0;x2<192;x2+=13) rect(g,x2,84,1,24,'#2f5029');
-    /* the peak */
     peak(g,96,30,88,52,'#3c4552','#5c6478',40,3);
-    /* storm shelf */
     vramp(g,0,0,W,26,['#14101c','#241d33','#2f2b52']);
     for(var n=0;n<26;n++){
       var cx=Math.floor(hsh(n,50,4)*192), cy=Math.floor(hsh(n,51,4)*24);
@@ -1201,16 +1317,13 @@ SC.rain = {
     }
   },
   fg:function(g,f){
-    /* pixel rain */
     for(var n=0;n<150;n++){
       var x=Math.floor(hsh(n,60,5)*192);
       var y=(Math.floor(hsh(n,61,5)*108) + f*7) % 116 - 8;
       rect(g,x,y,1,3+Math.floor(hsh(n,62,5)*3),'#8fe3ff');
     }
-    /* lightning, every eighth beat */
     if((f%16)===0 || (f%16)===2){
-      var lx=44;
-      for(var k=0;k<18;k++){ rect(g,lx+Math.round(Math.sin(k)*3),8+k*3,2,3,'#e8f4ff'); }
+      for(var k=0;k<18;k++) rect(g,44+Math.round(Math.sin(k)*3),8+k*3,2,3,'#e8f4ff');
       wash(g,0,0,192,108,'#cfd8ff',0.12);
     }
     spr(g,SPR.ableFlute,86,38);
@@ -1222,12 +1335,10 @@ SC.rain = {
 SC.coda = {
   bg:function(g){
     vramp(g,0,0,W,H,['#241d33','#3b3a6e','#6a72b8','#9aa7b5','#7fa06a','#4a7a3e']);
-    /* far green country under rain */
     for(var y=86;y<108;y++) for(var x=0;x<192;x++){
       var q=(Math.floor(x/7)+Math.floor(y/3))&1;
       rect(g,x,y,1,1,q?'#4a7a3e':'#3d6636');
     }
-    /* cloud sea below the peak */
     for(var n=0;n<40;n++){
       var cx=Math.floor(hsh(n,70,6)*192), cy=64+Math.floor(hsh(n,71,6)*18);
       rect(g,cx,cy,12+Math.floor(hsh(n,72,6)*16),3,'#b9c2cc');
@@ -1243,7 +1354,7 @@ SC.coda = {
       rect(g,x,y,1,3,'#8fe3ff');
     }
     var b=(f>>2)&1;
-    spr(g,SPR.ableFlute,90,28-b,{alpha:1});
+    spr(g,SPR.ableFlute,90,28-b);
     caption(g,'AT THE TOP OF THE WORLD',6,89,'#cfd8ff');
     caption(g,'ALONE',6,99,'#9aa7b5');
   }
@@ -1251,19 +1362,28 @@ SC.coda = {
 
 /* ==================================================================
    6 · ENGINE
+   ------------------------------------------------------------------
+   Scroll is mapped to DISTANCE CLIMBED, not to narrative order.
+   Each stage is a "station" — a fixed place on the mountain where the
+   altitude does not change while you read. Between two stations we
+   insert a travel spacer whose height is (feet gained x PX_PER_FT),
+   so one pixel of scrolling is the same number of feet everywhere on
+   the page. The village stages gain 0 ft and collapse to nothing; the
+   granite wall gains 1,400 ft and takes real effort to get through.
    ================================================================== */
 var doc = document, body = doc.body;
 body.classList.remove('no-js');
 body.classList.add('js-reveal');
 
 var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var MAX_ALT = 6400;
+function pxPerFoot(){ return window.innerWidth < 900 ? 0.62 : 0.95; }
 
 /* ---- scene canvases ---- */
 var scenes = [];
 Array.prototype.forEach.call(doc.querySelectorAll('canvas[data-scene]'), function(cv){
-  var name = cv.getAttribute('data-scene');
-  var def  = SC[name];
-  if(!def){ return; }
+  var def = SC[cv.getAttribute('data-scene')];
+  if(!def) return;
   var g = cv.getContext('2d');
   g.imageSmoothingEnabled = false;
   scenes.push({ cv:cv, g:g, def:def, off:null, visible:false, built:false });
@@ -1279,7 +1399,6 @@ function build(s){
   s.def.bg(og);
   s.off = off; s.built = true;
 }
-
 function paint(s,f){
   build(s);
   s.g.clearRect(0,0,W,H);
@@ -1287,13 +1406,9 @@ function paint(s,f){
   if(s.def.fg) s.def.fg(s.g, reduce ? 3 : f);
 }
 
-/* integer pixel scaling wherever the width allows it */
 function sizeScenes(){
   scenes.forEach(function(s){
-    var host  = s.cv.parentNode;                 /* .screen  — shrink-wraps  */
-    var inner = host.parentNode;                 /* .stage-inner — the grid  */
-    /* getComputedStyle resolves grid-template-columns to used pixel values,
-       which is the only reliable read of the cell a shrink-wrapped box sits in. */
+    var host = s.cv.parentNode, inner = s.cv.closest('.stage-inner');
     var cell = 0;
     try{
       var cols = getComputedStyle(inner).gridTemplateColumns.split(/\s+/)
@@ -1301,9 +1416,14 @@ function sizeScenes(){
       cell = cols.length ? cols[0] : 0;
     }catch(e){}
     if(!cell) cell = inner.clientWidth;
-    var pad   = (parseFloat(getComputedStyle(host).paddingLeft) || 0) * 2;
-    var frame = (parseFloat(getComputedStyle(doc.documentElement).getPropertyValue('--u')) || 4) * 4;
-    var avail = Math.floor(cell - pad - frame);
+    var cs = getComputedStyle(host);
+    var pad = (parseFloat(cs.paddingLeft)||0)*2 + (parseFloat(cs.borderLeftWidth)||0)*2;
+    var tv = host.parentNode && host.parentNode.classList.contains('tv');
+    if(tv){
+      var tcs = getComputedStyle(host.parentNode);
+      pad += (parseFloat(tcs.paddingLeft)||0)*2 + (parseFloat(tcs.borderLeftWidth)||0)*2;
+    }
+    var avail = Math.floor(cell - pad);
     if(avail <= 0) return;
     var css = (avail >= W*2) ? W * Math.floor(avail / W) : avail;
     s.cv.style.width  = css + 'px';
@@ -1311,13 +1431,102 @@ function sizeScenes(){
   });
 }
 
-/* ---- fixed sky backdrop ---- */
-var sky = doc.getElementById('sky');
-var sg  = sky.getContext('2d');
+/* ---- stages ---- */
+var stageEls = Array.prototype.slice.call(doc.querySelectorAll('.stage'));
+function num(el,attr,dflt){ var v = parseFloat(el.getAttribute(attr)); return isNaN(v) ? dflt : v; }
+
+stageEls.forEach(function(el,i){
+  if(i % 2 === 1) el.classList.add('flip');           /* not :nth-child — spacers sit between them */
+  var sc = el.querySelector('.screen');
+  if(sc && el.id !== 's0') sc.style.setProperty('--tilt', (i%2 ? '0.55deg' : '-0.6deg'));
+  var n = el.querySelector('.level-tag');
+  if(sc && n){
+    var badge = doc.createElement('span');
+    badge.className = 'panel-no';
+    badge.textContent = i;
+    sc.appendChild(badge);
+  }
+});
+
+/* ---- travel spacers: the climb between stations ---- */
+var climbers = [];
+function buildTravel(){
+  Array.prototype.forEach.call(doc.querySelectorAll('.travel'), function(el){ el.remove(); });
+  climbers = [];
+  var PPF = pxPerFoot();
+  for(var i=0;i<stageEls.length-1;i++){
+    var cur = stageEls[i], nxt = stageEls[i+1];
+    var a0 = num(cur,'data-alt',0), a1 = num(nxt,'data-alt',0);
+    var gain = a1 - a0;
+    if(gain <= 0) continue;                      /* no distance, no scroll */
+
+    var b0 = num(cur,'data-body',100), b1 = num(nxt,'data-body',100);
+    /* the leg is mended AT the summit, not on the way up to it: hold the
+       body meter flat so it snaps full exactly on the heal */
+    if(nxt.getAttribute('data-heal')==='1' && cur.getAttribute('data-heal')!=='1') b1 = b0;
+
+    var d = doc.createElement('div');
+    d.className = 'travel';
+    d.style.height = Math.round(gain*PPF) + 'px';
+    d.setAttribute('data-a0',a0); d.setAttribute('data-a1',a1);
+    d.setAttribute('data-b0',b0); d.setAttribute('data-b1',b1);
+
+    var cv = doc.createElement('canvas');
+    cv.width = 16; cv.height = 24;
+    cv.className = 'climber';
+    cv.setAttribute('aria-hidden','true');
+    var scale = window.innerWidth < 900 ? 2 : 4;
+    cv.style.width = (16*scale)+'px';
+    cv.style.height = (24*scale)+'px';
+    var cg = cv.getContext('2d'); cg.imageSmoothingEnabled=false;
+    d.appendChild(cv);
+    climbers.push({cv:cv, g:cg});
+
+    var step = gain > 1000 ? 250 : (gain > 300 ? 100 : 25);
+    for(var ft = Math.ceil((a0+1)/step)*step; ft < a1; ft += step){
+      var t = doc.createElement('span');
+      t.className = 'tick';
+      t.style.top = Math.round((ft-a0)*PPF) + 'px';
+      t.textContent = ft.toLocaleString('en-US') + ' FT';
+      d.appendChild(t);
+    }
+    nxt.parentNode.insertBefore(d, nxt);
+  }
+}
+
+/* ---- the altitude map: scrollY -> feet ---- */
+var segs = [];
+function buildMap(){
+  segs = [];
+  Array.prototype.forEach.call(doc.querySelector('main').children, function(el){
+    var top = el.offsetTop, h = el.offsetHeight;
+    if(el.classList.contains('stage')){
+      var a = num(el,'data-alt',0), b = num(el,'data-body',100);
+      segs.push({top:top, h:h, a0:a, a1:a, b0:b, b1:b});
+    } else if(el.classList.contains('travel')){
+      segs.push({ top:top, h:h,
+        a0:num(el,'data-a0',0), a1:num(el,'data-a1',0),
+        b0:num(el,'data-b0',100), b1:num(el,'data-b1',100) });
+    }
+  });
+}
+function readAt(y){
+  if(!segs.length) return {alt:0, body:100};
+  var s = segs[0];
+  for(var i=0;i<segs.length;i++){ if(y >= segs[i].top) s = segs[i]; else break; }
+  var t = Math.max(0, Math.min(1, (y - s.top)/Math.max(1, s.h)));
+  return { alt: s.a0 + (s.a1-s.a0)*t, body: s.b0 + (s.b1-s.b0)*t };
+}
+
+/* ---- fixed sky ---- */
+var sky = doc.getElementById('sky'), sg = sky.getContext('2d');
 sg.imageSmoothingEnabled = false;
 var SKW = 192, SKH = 108, skyScale = 4;
-var fallback = doc.getElementById('sky-fallback');
-if(fallback && fallback.parentNode) fallback.parentNode.removeChild(fallback);
+var fb = doc.getElementById('sky-fallback');
+if(fb && fb.parentNode) fb.parentNode.removeChild(fb);
+
+var clouds = doc.getElementById('clouds'), cg2 = clouds.getContext('2d');
+cg2.imageSmoothingEnabled = false;
 
 function sizeSky(){
   skyScale = Math.max(2, Math.ceil(window.innerWidth / SKW));
@@ -1327,8 +1536,24 @@ function sizeSky(){
   sky.style.height = (SKH*skyScale) + 'px';
   sg.imageSmoothingEnabled = false;
 }
+function buildClouds(){
+  var lw = SKW*2;
+  clouds.width = lw; clouds.height = 42;
+  cg2.imageSmoothingEnabled = false;
+  cg2.clearRect(0,0,lw,42);
+  for(var n=0;n<13;n++){
+    var cx = Math.floor(hsh(n,100,3)*SKW), cy = Math.floor(hsh(n,101,3)*28);
+    var w  = 16 + Math.floor(hsh(n,102,3)*22);
+    [cx, cx+SKW].forEach(function(ox){
+      rect(cg2, ox+4, cy,   w-8, 4, '#eef2ff');
+      rect(cg2, ox,   cy+4, w,   5, '#e2e8fa');
+      rect(cg2, ox+2, cy+9, w-4, 3, '#b9c2cc');
+    });
+  }
+  clouds.style.width  = (lw*skyScale) + 'px';
+  clouds.style.height = (42*skyScale) + 'px';
+}
 
-/* four sky keyframes; scroll steps between them in discrete stages */
 var SKY_KEYS = [
   { stops:['#e8c98d','#f2dcaa','#f7e6c0'], ridge:['#c99b58','#a8763f','#8a5f38'] },
   { stops:['#c9b27f','#e0c58f','#efd9a4'], ridge:['#9aa7b5','#7d8895','#66717f'] },
@@ -1336,10 +1561,9 @@ var SKY_KEYS = [
   { stops:['#14101c','#241d33','#3b3a6e'], ridge:['#2b2a4e','#22213f','#1b1730'] }
 ];
 function quant(hex){
-  var n = parseInt(hex.slice(1),16);
-  var r=(n>>16)&255, gg=(n>>8)&255, b=n&255;
-  r=Math.round(r/17)*17; gg=Math.round(gg/17)*17; b=Math.round(b/17)*17;
-  return '#' + ((1<<24)+(r<<16)+(gg<<8)+b).toString(16).slice(1);
+  var n=parseInt(hex.slice(1),16), r=(n>>16)&255, g2=(n>>8)&255, b=n&255;
+  r=Math.round(r/17)*17; g2=Math.round(g2/17)*17; b=Math.round(b/17)*17;
+  return '#'+((1<<24)+(r<<16)+(g2<<8)+b).toString(16).slice(1);
 }
 function lerpHex(a,b,t){
   var x=parseInt(a.slice(1),16), y=parseInt(b.slice(1),16);
@@ -1349,9 +1573,7 @@ function lerpHex(a,b,t){
   return quant('#'+((1<<24)+(r<<16)+(g2<<8)+b2).toString(16).slice(1));
 }
 
-var STEPS = 14;
-var lastSkyStep = -1, lastSkyH = -1;
-
+var STEPS = 22, lastSkyStep = -1, lastSkyH = -1;
 function drawSky(p){
   var step = Math.round(p*STEPS)/STEPS;
   if(step === lastSkyStep && SKH === lastSkyH) return;
@@ -1364,16 +1586,13 @@ function drawSky(p){
   var rid   = A.ridge.map(function(c,k){ return lerpHex(c, B.ridge[k], t); });
 
   vramp(sg,0,0,SKW,SKH,stops);
-
-  /* three parallax ridges that fall away as you climb */
+  /* ridges fall away beneath you as the altitude rises */
   for(var L=0; L<3; L++){
-    var base = SKH*(0.52 + L*0.15) + step*SKH*(0.55 + L*0.5);
+    var base = SKH*(0.5 + L*0.15) + step*SKH*(0.6 + L*0.55);
     if(base > SKH + 40) continue;
     var amp = 4 + L*3;
     for(var x=0;x<SKW;x++){
-      var y = base
-        + Math.sin((x + L*31)/(26 - L*6))*amp
-        + Math.sin((x + L*11)/8)*amp*0.35;
+      var y = base + Math.sin((x + L*31)/(26 - L*6))*amp + Math.sin((x + L*11)/8)*amp*0.35;
       y = Math.round(y);
       if(y >= SKH) continue;
       if(y < 0) y = 0;
@@ -1381,82 +1600,87 @@ function drawSky(p){
       sg.fillRect(x, y, 1, SKH-y);
     }
   }
-  if(step > 0.72){
-    var amt = Math.min(1,(step-0.72)/0.28);
-    for(var n=0;n<Math.round(140*amt);n++){
-      var rx=Math.floor(hsh(n,90,3)*SKW), ry=Math.floor(hsh(n,91,3)*SKH);
-      sg.fillStyle='#8fe3ff';
-      sg.fillRect(rx,ry,1,3);
-    }
-  }
 }
 
-/* ---- stages, HUD, scroll ---- */
-var stageEls = Array.prototype.slice.call(doc.querySelectorAll('.stage'));
-var hudAlt   = doc.getElementById('hud-alt');
-var hudBody  = doc.getElementById('hud-body');
-var hudName  = doc.getElementById('hud-stage');
-var mAlt     = doc.getElementById('meter-alt');
-var mBody    = doc.getElementById('meter-body');
-var mBodyWrap= doc.getElementById('meter-body-wrap');
-var MAX_ALT  = 6400;
+/* ---- route map: where Able is on the mountain ---- */
+var routeCv = doc.getElementById('route'), rg = routeCv ? routeCv.getContext('2d') : null;
+if(rg) rg.imageSmoothingEnabled = false;
+var RW = 52, RH = 72, RTOP = 8, RBASE = 64, routeBg = null;
 
-var io = new IntersectionObserver(function(entries){
-  entries.forEach(function(e){
-    if(e.isIntersecting) e.target.classList.add('seen');
-  });
-}, { threshold: 0.18, rootMargin:'0px 0px -8% 0px' });
-stageEls.forEach(function(el){ io.observe(el); });
-
-var vio = new IntersectionObserver(function(entries){
-  entries.forEach(function(e){
-    var s = scenes.filter(function(x){ return e.target.contains(x.cv); })[0];
-    if(s) s.visible = e.isIntersecting;
-  });
-}, { rootMargin:'120px 0px 120px 0px' });
-scenes.forEach(function(s){ vio.observe(s.cv.parentNode); });
-
-function num(el,attr,dflt){ var v = parseFloat(el.getAttribute(attr)); return isNaN(v) ? dflt : v; }
-
-function updateHud(){
-  var mid = window.scrollY + window.innerHeight*0.5;
-  var idx = 0;
-  for(var i=0;i<stageEls.length;i++){
-    if(stageEls[i].offsetTop <= mid) idx = i;
+function buildRouteBg(){
+  var c = doc.createElement('canvas'); c.width=RW; c.height=RH;
+  var g = c.getContext('2d'); g.imageSmoothingEnabled=false;
+  vramp(g,0,0,RW,RH,['#241d33','#3b3a6e','#6a72b8']);
+  for(var x=0;x<RW;x++){
+    var t = Math.abs(x-26)/26;
+    var y = Math.round(RTOP-3 + (RBASE-RTOP+3)*Math.pow(t,0.9));
+    rect(g,x,y,1,RH-y,'#4d5764');
+    if(y < RTOP+6) rect(g,x,y,1,(RTOP+6)-y,'#d5dde5');
   }
-  var cur = stageEls[idx], nxt = stageEls[Math.min(idx+1, stageEls.length-1)];
-  var span = Math.max(1, nxt.offsetTop - cur.offsetTop);
-  var t = Math.max(0, Math.min(1, (mid - cur.offsetTop)/span));
+  rect(g,0,RBASE,RW,1,'#2a2436');
+  rect(g,0,RBASE+1,RW,RH-RBASE-1,'#1e1b30');
+  /* a tick for every station */
+  stageEls.forEach(function(el){
+    var a = num(el,'data-alt',0);
+    var y = Math.round(RBASE - (a/MAX_ALT)*(RBASE-RTOP));
+    rect(g,0,y,3,1,'#66717f');
+  });
+  text(g,'6400',RW-17,1,'#8e93b8');
+  text(g,'0',1,RBASE-6,'#8e93b8');
+  return c;
+}
+function drawRoute(alt){
+  if(!rg) return;
+  if(!routeBg) routeBg = buildRouteBg();
+  rg.clearRect(0,0,RW,RH);
+  rg.drawImage(routeBg,0,0);
+  var y = Math.round(RBASE - Math.max(0,Math.min(1,alt/MAX_ALT))*(RBASE-RTOP));
+  for(var x=0;x<RW;x+=4) rect(rg,x,y,2,1,'#ffd257');
+  rect(rg,24,y-2,5,5,'#14101c');
+  rect(rg,25,y-1,3,3,'#ffd257');
+}
 
-  var a = num(cur,'data-alt',0) + (num(nxt,'data-alt',0) - num(cur,'data-alt',0))*t;
-  /* The leg is mended at the summit, not gradually on the way up it: hold the
-     body meter flat across the last wounded stage so it SNAPS full on the heal. */
-  var healing = nxt.getAttribute('data-heal') === '1' && cur.getAttribute('data-heal') !== '1';
-  var b = healing ? num(cur,'data-body',100)
-                  : num(cur,'data-body',100) + (num(nxt,'data-body',100) - num(cur,'data-body',100))*t;
+/* ---- HUD ---- */
+var hudAlt = doc.getElementById('hud-alt'),  hudBody = doc.getElementById('hud-body');
+var hudName= doc.getElementById('hud-stage'), mAlt   = doc.getElementById('meter-alt');
+var mBody  = doc.getElementById('meter-body'), mBodyWrap = doc.getElementById('meter-body-wrap');
+var rootS  = doc.documentElement.style;
 
-  hudAlt.textContent  = Math.round(a).toLocaleString('en-US') + ' FT';
-  hudBody.textContent = Math.round(b) + '%';
-  mAlt.style.transform  = 'scaleX(' + (a/MAX_ALT).toFixed(3) + ')';
-  mBody.style.transform = 'scaleX(' + (b/100).toFixed(3) + ')';
-  hudName.textContent   = cur.getAttribute('data-name') || '';
+function update(){
+  var mid = window.scrollY + window.innerHeight*0.5;
+  var r = readAt(mid);
+  var alt = r.alt, bod = r.body, p = Math.max(0, Math.min(1, alt/MAX_ALT));
+
+  hudAlt.textContent  = Math.round(alt).toLocaleString('en-US') + ' FT';
+  hudBody.textContent = Math.round(bod) + '%';
+  mAlt.style.transform  = 'scaleX(' + p.toFixed(3) + ')';
+  mBody.style.transform = 'scaleX(' + (bod/100).toFixed(3) + ')';
+
+  var cur = stageEls[0];
+  for(var i=0;i<stageEls.length;i++) if(stageEls[i].offsetTop <= mid) cur = stageEls[i];
+  hudName.textContent = cur.getAttribute('data-name') || '';
   mBodyWrap.classList.toggle('healed', cur.getAttribute('data-heal') === '1');
 
-  var docH = Math.max(1, doc.documentElement.scrollHeight - window.innerHeight);
-  var p = Math.max(0, Math.min(1, window.scrollY / docH));
   drawSky(p);
+  drawRoute(alt);
 
-  var zone = p < 0.34 ? 0 : (p < 0.68 ? 1 : 2);
-  var r = doc.documentElement.style;
-  if(zone === 0){
-    r.setProperty('--zone-ink','#4a3418'); r.setProperty('--zone-panel','#f7e6c0');
-    r.setProperty('--zone-edge','#8a5f38'); r.setProperty('--zone-accent','#c99b58');
-  } else if(zone === 1){
-    r.setProperty('--zone-ink','#2e3742'); r.setProperty('--zone-panel','#e2e7ec');
-    r.setProperty('--zone-edge','#66717f'); r.setProperty('--zone-accent','#9aa7b5');
+  /* clouds gather as you climb, then sink below you */
+  var cop = alt < 1400 ? 0 : Math.min(0.85, (alt-1400)/2200);
+  rootS.setProperty('--cloud-op', cop.toFixed(2));
+  clouds.style.top = (26 + p*54) + 'vh';
+
+  if(p < 0.34){
+    rootS.setProperty('--zone-ink','#4a3418');  rootS.setProperty('--zone-panel','#f7e6c0');
+    rootS.setProperty('--zone-edge','#8a5f38'); rootS.setProperty('--zone-accent','#c99b58');
+    rootS.setProperty('--halftone','rgba(138,95,56,.20)');
+  } else if(p < 0.72){
+    rootS.setProperty('--zone-ink','#2e3742');  rootS.setProperty('--zone-panel','#e2e7ec');
+    rootS.setProperty('--zone-edge','#66717f'); rootS.setProperty('--zone-accent','#9aa7b5');
+    rootS.setProperty('--halftone','rgba(60,69,82,.18)');
   } else {
-    r.setProperty('--zone-ink','#241d33'); r.setProperty('--zone-panel','#dcdff2');
-    r.setProperty('--zone-edge','#3b3a6e'); r.setProperty('--zone-accent','#6a72b8');
+    rootS.setProperty('--zone-ink','#241d33');  rootS.setProperty('--zone-panel','#dcdff2');
+    rootS.setProperty('--zone-edge','#3b3a6e'); rootS.setProperty('--zone-accent','#6a72b8');
+    rootS.setProperty('--halftone','rgba(59,58,110,.18)');
   }
 }
 
@@ -1464,16 +1688,36 @@ var ticking = false;
 function onScroll(){
   if(ticking) return;
   ticking = true;
-  var run = function(){ updateHud(); ticking = false; };
-  /* rAF never fires in a hidden or prerendered document; run inline there so
-     the HUD and sky are already correct the moment the tab becomes visible. */
+  var run = function(){ update(); ticking = false; };
+  /* rAF never fires in a hidden or prerendered document — run inline there
+     so the HUD is already correct the moment the tab becomes visible */
   if(doc.hidden) run(); else requestAnimationFrame(run);
 }
-doc.addEventListener('visibilitychange', function(){ if(!doc.hidden){ lastSkyStep=-1; updateHud(); } });
 window.addEventListener('scroll', onScroll, {passive:true});
-window.addEventListener('resize', function(){ sizeSky(); sizeScenes(); lastSkyStep=-1; updateHud(); });
+doc.addEventListener('visibilitychange', function(){ if(!doc.hidden){ lastSkyStep=-1; update(); } });
 
-/* ---- chunky animation clock: 8 steps a second, visible canvases only ---- */
+function relayout(){
+  sizeSky(); buildClouds(); buildTravel(); sizeScenes(); buildMap();
+  lastSkyStep = -1; update();
+}
+var rt;
+window.addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(relayout, 150); });
+
+/* ---- observers ---- */
+var io = new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting) e.target.classList.add('seen'); });
+}, { threshold:0.18, rootMargin:'0px 0px -8% 0px' });
+stageEls.forEach(function(el){ io.observe(el); });
+
+var vio = new IntersectionObserver(function(es){
+  es.forEach(function(e){
+    var s = scenes.filter(function(x){ return e.target.contains(x.cv); })[0];
+    if(s) s.visible = e.isIntersecting;
+  });
+}, { rootMargin:'160px 0px 160px 0px' });
+scenes.forEach(function(s){ vio.observe(s.cv.parentNode); });
+
+/* ---- chunky clock: 8 steps a second, visible canvases only ---- */
 var frame = 0, acc = 0, last = 0;
 function loop(ts){
   if(!last) last = ts;
@@ -1481,6 +1725,12 @@ function loop(ts){
   if(acc >= 125){
     acc = 0; frame++;
     for(var i=0;i<scenes.length;i++) if(scenes[i].visible) paint(scenes[i], frame);
+    for(var k=0;k<climbers.length;k++){
+      var c = climbers[k];
+      if(c.cv.getBoundingClientRect().bottom < -40) continue;
+      c.g.clearRect(0,0,16,24);
+      spr(c.g, SPR.ableClimb, 2, 3 + ((frame>>1)&1));
+    }
   }
   requestAnimationFrame(loop);
 }
@@ -1493,17 +1743,16 @@ crtBtn.addEventListener('click', function(){
 });
 
 /* ---- go ---- */
-sizeSky();
-sizeScenes();
-updateHud();
+relayout();
 scenes.forEach(function(s){ paint(s, 0); });
+climbers.forEach(function(c){ spr(c.g, SPR.ableClimb, 2, 3); });
 if(reduce){
   scenes.forEach(function(s){ s.visible = true; paint(s, 3); });
   stageEls.forEach(function(el){ el.classList.add('seen'); });
 } else {
   requestAnimationFrame(loop);
 }
-if(document.fonts && document.fonts.ready) document.fonts.ready.then(sizeScenes);
+if(doc.fonts && doc.fonts.ready) doc.fonts.ready.then(function(){ sizeScenes(); buildMap(); update(); });
 
 })();
 </script>
