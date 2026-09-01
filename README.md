@@ -3,7 +3,7 @@
 A pixel-art companion site for a school English reflection on **"The Woman at the
 Top of the World"**, a short story by **Matthew J. Kirby**.
 
-**Live site:** _(added after deploy)_
+**Live site:** https://the-climb-judeliucodex.vercel.app
 
 ## What it is
 
