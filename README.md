@@ -50,7 +50,6 @@ so it works offline too.
 
 "The Woman at the Top of the World" is a short story by Matthew J. Kirby. All
 quoted phrases are his, reproduced as brief excerpts for the purpose of
-commentary. This page is a student multimodal reflection made for a school
-English assignment.
+commentary.
 
-Pixel art, code and commentary by Jude.
+A project by Jude for English SOW.
