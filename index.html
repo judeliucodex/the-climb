@@ -85,49 +85,46 @@ img, canvas{ image-rendering: pixelated; image-rendering: crisp-edges; }
 }
 body.no-crt #crt{ display:none; }
 
-/* ---------- HUD ---------- */
+/* ---------- HUD ----------
+   One number, one bar, one chapter name. Nothing else. */
 #hud{
   position:fixed; z-index:80;
   left:calc(var(--u)*4); top:calc(var(--u)*4);
-  width:calc(var(--u)*50);
+  width:calc(var(--u)*52);
   background:var(--ink); color:var(--paper);
-  padding:calc(var(--u)*2.5);
+  padding:calc(var(--u)*3);
   font-family:"Press Start 2P", "Pixelify Sans", monospace;
-  font-size:calc(var(--u)*1.6);
-  line-height:1.9;
   box-shadow:
      0 0 0 var(--u) var(--ink),
      0 0 0 calc(var(--u)*2) var(--zone-edge),
      calc(var(--u)*2) calc(var(--u)*2) 0 calc(var(--u)*2) rgba(0,0,0,.4);
 }
-.hud-row{ display:flex; justify-content:space-between; gap:var(--u); align-items:center; }
-.hud-key{ color:var(--zone-accent); }
-.hud-val{ color:var(--paper); font-variant-numeric:tabular-nums; }
-.meter{
-  height:calc(var(--u)*3);
-  margin:calc(var(--u)*1) 0 calc(var(--u)*2.5);
+.hud-top{ display:flex; align-items:baseline; justify-content:space-between; gap:var(--u); }
+.hud-label{ font-size:calc(var(--u)*1.4); color:var(--zone-accent); }
+.hud-figure{ font-size:calc(var(--u)*2.4); color:var(--gold); font-variant-numeric:tabular-nums; }
+.hud-bar{
+  height:calc(var(--u)*3.5);
+  margin:calc(var(--u)*2.5) 0 calc(var(--u)*1.5);
   background:var(--shadow);
   box-shadow:0 0 0 var(--u) var(--ink-soft);
   overflow:hidden;
 }
-.meter > i{
+.hud-bar > i{
   display:block; height:100%; width:100%;
   background:var(--gold); transform-origin:left center;
-  transition:transform .18s steps(6,end), background-color .3s steps(4,end);
+  transform:scaleX(0);
+  transition:transform .18s steps(6,end);
 }
-.meter.body > i{ background:var(--blood); }
-.meter.body.healed > i{ background:var(--grass); }
-
-#route{
-  display:block; margin:calc(var(--u)*1) auto calc(var(--u)*2);
-  background:var(--ink-soft);
-  box-shadow:0 0 0 var(--u) var(--ink-soft);
+.hud-ends{
+  display:flex; justify-content:space-between;
+  font-size:calc(var(--u)*1.1); color:var(--gran-1);
 }
 #hud .stage-name{
-  display:block; color:var(--paper);
-  font-size:calc(var(--u)*1.5); line-height:1.8; word-break:break-word;
+  display:block; margin-top:calc(var(--u)*3);
+  color:var(--paper); font-size:calc(var(--u)*1.5);
+  line-height:1.7; word-break:break-word;
 }
-#hud .hint{ display:block; margin-top:calc(var(--u)*2); color:var(--gran-1); font-size:calc(var(--u)*1.2); }
+#hud .hint{ display:block; margin-top:calc(var(--u)*2); color:var(--zone-accent); font-size:calc(var(--u)*1.1); }
 
 #crt-toggle{
   position:fixed; z-index:81;
@@ -139,29 +136,59 @@ body.no-crt #crt{ display:none; }
 }
 #crt-toggle:hover{ color:var(--gold); }
 
-@media (max-width: 900px){
+/* Phones and tablets (portrait AND landscape): slim top bar. Below 1280px the
+   centred content is wide enough to run underneath a floating sidebar HUD. */
+@media (max-width: 1280px){
   #hud{
     left:0; top:0; width:100%;
-    display:flex; gap:calc(var(--u)*3); align-items:center;
+    display:grid;
+    grid-template-columns:auto 1fr;
+    grid-template-areas:"fig bar" "name name";
+    gap:0 calc(var(--u)*3); align-items:center;
     padding:calc(var(--u)*2) calc(var(--u)*3);
     box-shadow:0 var(--u) 0 0 var(--zone-edge);
   }
-  #hud .block{ flex:0 0 auto; min-width:calc(var(--u)*28); }
-  #hud .stage-name{ flex:1 1 auto; font-size:calc(var(--u)*1.3); }
-  #hud .hint, #route{ display:none; }
-  .meter{ margin:calc(var(--u)*1) 0 0; }
-  #crt-toggle{ display:none; }
+  .hud-top{ grid-area:fig; display:block; }
+  .hud-label{ display:none; }
+  .hud-figure{ font-size:calc(var(--u)*2); }
+  .hud-bar{ grid-area:bar; margin:0; height:calc(var(--u)*2.5); }
+  .hud-ends{ display:none; }
+  #hud .stage-name{
+    grid-area:name; margin-top:calc(var(--u)*1.5);
+    font-size:calc(var(--u)*1.2); line-height:1.4;
+  }
+  #hud .hint{ display:none; }
+}
+/* Landscape phones: almost no vertical room — shrink the bar to one line. */
+@media (max-height: 460px) and (orientation: landscape){
+  #hud{
+    grid-template-columns:auto 1fr auto;
+    grid-template-areas:"fig bar name";
+    padding:calc(var(--u)*1.5) calc(var(--u)*3);
+  }
+  #hud .stage-name{ margin-top:0; max-width:38vw; text-align:right; }
 }
 
 /* ---------- stages ---------- */
-main{ position:relative; z-index:10; }
+/* The reader climbs by scrolling UP. The DOM keeps its natural order —
+   title first, results last — so screen readers and the no-JS view still read
+   the essay forwards; only the visual flow is reversed. */
+main{ position:relative; z-index:10; display:flex; flex-direction:column-reverse; }
+.no-js main{ display:block; }
 
 .stage{
   min-height:88vh;
+  min-height:88svh;          /* iOS: ignore the collapsing address bar */
   display:flex; align-items:center; justify-content:center;
   padding:calc(var(--u)*16) calc(var(--u)*5);
+  flex:0 0 auto;
 }
-@media (max-width:900px){ .stage{ padding:calc(var(--u)*22) calc(var(--u)*4) calc(var(--u)*10); } }
+@media (max-width:900px){ .stage{ padding:calc(var(--u)*20) calc(var(--u)*4) calc(var(--u)*8); } }
+/* 901-1280px still uses the top-bar HUD, so keep clear of it */
+@media (min-width:901px) and (max-width:1280px){ .stage{ padding-top:calc(var(--u)*24); } }
+@media (max-height:460px) and (orientation:landscape){
+  .stage{ min-height:auto; padding:calc(var(--u)*14) calc(var(--u)*4) calc(var(--u)*6); }
+}
 
 .stage-inner{
   width:100%; max-width:1180px;
@@ -178,8 +205,7 @@ main{ position:relative; z-index:10; }
 
 /* ---------- travel: the space between stages IS the climb ---------- */
 .travel{
-  position:relative;
-  z-index:10;
+  position:relative; z-index:10; flex:0 0 auto;
 }
 .travel::before{                       /* the route line */
   content:""; position:absolute;
@@ -283,8 +309,14 @@ blockquote cite{
 .commentary strong{ color:var(--zone-ink); }
 
 /* ---------- title: a cartoon TV set ---------- */
-#s0 .stage-inner{ grid-template-columns:1fr; max-width:920px; text-align:center; justify-items:center; }
-#s0 .panel{ background-color:var(--ink); color:var(--paper); background-image:none; width:100%; }
+#s0 .stage-inner{ grid-template-columns:1fr; max-width:920px; text-align:center; justify-items:center;
+  gap:calc(var(--u)*4); }
+/* the sidebar HUD sits top-left; keep the two full-width stages below it */
+@media (min-width:1281px){
+  #s0, #s12{ padding-top:calc(var(--u)*33); }
+}
+#s0 .panel{ background-color:var(--ink); color:var(--paper); background-image:none; width:100%;
+  padding:calc(var(--u)*4) calc(var(--u)*5); }
 
 .tv-wrap{
   position:relative; display:inline-block; max-width:100%;
@@ -331,15 +363,15 @@ blockquote cite{
 }
 .title-sub{
   font-family:"Press Start 2P", monospace;
-  font-size:clamp(.62rem, 1.7vw, .82rem);
-  line-height:2.2; color:var(--gran-0); margin:calc(var(--u)*6) 0 0;
+  font-size:clamp(.58rem, 1.5vw, .74rem);
+  line-height:2; color:var(--gran-0); margin:calc(var(--u)*4) 0 0;
 }
 .title-epigraph{
-  margin:calc(var(--u)*7) auto 0; max-width:34ch;
-  font-size:clamp(1.05rem,2.2vw,1.35rem); color:var(--paper);
+  margin:calc(var(--u)*4) auto 0; max-width:34ch;
+  font-size:clamp(1rem,2vw,1.2rem); color:var(--paper);
 }
 .press-start{
-  margin-top:calc(var(--u)*8);
+  margin-top:calc(var(--u)*5);
   font-family:"Press Start 2P", monospace;
   font-size:clamp(.6rem,1.6vw,.8rem); color:var(--gold);
   animation:blink 1.1s steps(1,end) infinite;
@@ -377,7 +409,7 @@ blockquote cite{
 .thesis p:last-child{ margin:0; color:var(--gold); }
 
 footer{
-  position:relative; z-index:10;
+  position:relative; z-index:10; flex:0 0 auto;
   background:var(--ink); color:var(--gran-1);
   padding:calc(var(--u)*8) calc(var(--u)*5); text-align:center;
   font-family:ui-sans-serif, system-ui, sans-serif;
@@ -390,7 +422,7 @@ footer strong{ color:var(--paper); }
    (background tab, reduced motion, dead JS) the essay is still readable.
    A reveal must never be able to hide the content it reveals. */
 @keyframes pop{
-  from{ transform:translateY(calc(var(--u)*5)) rotate(0deg); }
+  from{ transform:translateY(calc(var(--u)*-5)) rotate(0deg); }
   to  { transform:translateY(0) rotate(var(--tilt,0deg)); }
 }
 .screen{ transform:rotate(var(--tilt,0deg)); }
@@ -401,7 +433,7 @@ footer strong{ color:var(--paper); }
 }
 </style>
 </head>
-<body class="no-js">
+<body class="no-js no-crt">
 
 <div id="sky-fallback"></div>
 <canvas id="sky" aria-hidden="true"></canvas>
@@ -409,20 +441,17 @@ footer strong{ color:var(--paper); }
 <div id="crt" aria-hidden="true"></div>
 
 <header id="hud" aria-hidden="true">
-  <div class="block">
-    <div class="hud-row"><span class="hud-key">ALT</span><span class="hud-val" id="hud-alt">0 FT</span></div>
-    <div class="meter alt"><i id="meter-alt" style="transform:scaleX(0)"></i></div>
+  <div class="hud-top">
+    <span class="hud-label">CLIMBED</span>
+    <span class="hud-figure" id="hud-alt">0 FT</span>
   </div>
-  <div class="block">
-    <div class="hud-row"><span class="hud-key">BODY</span><span class="hud-val" id="hud-body">100%</span></div>
-    <div class="meter body" id="meter-body-wrap"><i id="meter-body"></i></div>
-  </div>
-  <canvas id="route" width="52" height="72"></canvas>
+  <div class="hud-bar"><i id="meter-alt"></i></div>
+  <div class="hud-ends"><span>BASE</span><span>SUMMIT 6,400 FT</span></div>
   <span class="stage-name" id="hud-stage">TITLE SCREEN</span>
-  <span class="hint">SCROLL TO CLIMB</span>
+  <span class="hint">&#9650; SCROLL UP TO CLIMB</span>
 </header>
 
-<button id="crt-toggle" type="button">CRT: ON</button>
+<button id="crt-toggle" type="button">SCANLINES: OFF</button>
 
 <main>
 
@@ -444,7 +473,7 @@ footer strong{ color:var(--paper); }
         REFLECTION BY JUDE
       </p>
       <p class="title-epigraph">&ldquo;the irony of Able&rsquo;s name was not lost on him&rdquo;</p>
-      <p class="press-start">&#9660; SCROLL TO CLIMB</p>
+      <p class="press-start">&#9650; SCROLL UP TO CLIMB</p>
     </div>
   </div>
 </section>
@@ -624,13 +653,15 @@ footer strong{ color:var(--paper); }
   </div>
 </section>
 
-</main>
 
 <footer>
   <p><strong>&ldquo;The Woman at the Top of the World&rdquo; is a short story by Matthew J. Kirby.</strong><br>
   All quoted phrases are his and are reproduced as brief excerpts for the purpose of commentary.</p>
   <p>A project by Jude for English SOW.</p>
 </footer>
+</main>
+
+
 
 <script>
 
@@ -692,6 +723,28 @@ SPR.ableClimb = [
 '...4455444..','...4444444..','....44444...','....66666...',
 '....66.66...','....6..66...','....6..66...','....6..66...',
 '....7..77...','............'];
+
+/* climbing cycle: reach left, pull, reach right, pull */
+SPR.climbA = [
+'..1.........','..1.........','..14........','..14.33.....',
+'..1433334...','..14333341..','...44444441.','...4444444..',
+'...4455444..','...4444444..','....44444...','....66666...',
+'...666.66...','..66...66...','..6....66...','..7....66...',
+'.......77...','............'];
+
+SPR.climbB = [
+'............','..1......1..','..14....41..','..14.33.41..',
+'..14333341..','..14333341..','...4444444..','...4444444..',
+'...4455444..','....44444...','....66666...','...66..66...',
+'...66..66...','...6....6...','...7....7...','............',
+'............','............'];
+
+SPR.climbC = [
+'.........1..','.........1..','........41..','.....33.41..',
+'...4333341..','..14333341..','.14444444...','...4444444..',
+'...4455444..','...4444444..','....44444...','....66666...',
+'...66.666...','...66...66..','...66....6..','...66....7..',
+'...77.......','............'];
 
 SPR.ableHang = [
 '....1.......','....1.......','....14......','...3344.....',
@@ -817,10 +870,16 @@ Object.keys(SPR).forEach(function(k){ SPR[k].__id = k; });
 /* Cartoon ink line: everything with a character or a silhouette gets one. */
 var OUTLINED = {
   able:1, ableHealed:1, ableFlute:1, ableClimb:1, ableHang:1, crutch:1,
+  climbA:1, climbB:1, climbC:1,
   villager:1, mother:1, witch:1, hart:1, falcon:1, owl:1,
   cottage:1, pine:1, cairn:1, kettle:1, flute:1, skull:1
 };
 var sprCache = {};
+
+/* reach left -> pull -> reach right -> pull */
+var CLIMB = [SPR.climbA, SPR.climbB, SPR.climbC, SPR.climbB];
+function climbFrame(f){ return CLIMB[((f % 4) + 4) % 4]; }
+function climbLift(f){ return (f % 2) ? 0 : 1; }   /* body rises on the pull */
 
 function renderSprite(map,opt){
   var w=map[0].length, h=map.length, o = opt.outline ? 1 : 0;
@@ -1221,8 +1280,7 @@ SC.wall = {
     vramp(g,0,0,W,10,['#b9c2cc','#8d99a8']);
   },
   fg:function(g,f){
-    var b=(f>>1)&1;
-    spr(g,SPR.ableClimb,84,34-b);
+    spr(g, climbFrame(f), 84, 34 - climbLift(f));
     var t=(f%40)/40, cy=44+t*80, cx2=58-t*14;
     if(cy<118){
       spr(g,SPR.crutch,cx2,cy,{alpha:1-t*0.5});
@@ -1409,6 +1467,7 @@ function paint(s,f){
 function sizeScenes(){
   scenes.forEach(function(s){
     var host = s.cv.parentNode, inner = s.cv.closest('.stage-inner');
+    var tv = host.parentNode && host.parentNode.classList.contains('tv');
     var cell = 0;
     try{
       var cols = getComputedStyle(inner).gridTemplateColumns.split(/\s+/)
@@ -1418,12 +1477,16 @@ function sizeScenes(){
     if(!cell) cell = inner.clientWidth;
     var cs = getComputedStyle(host);
     var pad = (parseFloat(cs.paddingLeft)||0)*2 + (parseFloat(cs.borderLeftWidth)||0)*2;
-    var tv = host.parentNode && host.parentNode.classList.contains('tv');
     if(tv){
       var tcs = getComputedStyle(host.parentNode);
       pad += (parseFloat(tcs.paddingLeft)||0)*2 + (parseFloat(tcs.borderLeftWidth)||0)*2;
     }
     var avail = Math.floor(cell - pad);
+    /* Also cap by viewport height, or a landscape phone gives the art a
+       768px-wide panel and the title alone becomes three screens tall. */
+    var budget = tv ? 0.30 : 0.55;   /* the TV shares its stage with the title block */
+    var byHeight = Math.floor(window.innerHeight * budget * (W/H));
+    avail = Math.min(avail, byHeight);
     if(avail <= 0) return;
     var css = (avail >= W*2) ? W * Math.floor(avail / W) : avail;
     s.cv.style.width  = css + 'px';
@@ -1486,36 +1549,61 @@ function buildTravel(){
     for(var ft = Math.ceil((a0+1)/step)*step; ft < a1; ft += step){
       var t = doc.createElement('span');
       t.className = 'tick';
-      t.style.top = Math.round((ft-a0)*PPF) + 'px';
+      /* higher altitudes sit nearer the top of the spacer */
+      t.style.top = Math.round((a1-ft)*PPF) + 'px';
       t.textContent = ft.toLocaleString('en-US') + ' FT';
       d.appendChild(t);
     }
+    d.__below = cur;
     nxt.parentNode.insertBefore(d, nxt);
   }
 }
 
-/* ---- the altitude map: scrollY -> feet ---- */
+/* ---- the altitude map: screen position -> feet ----
+   main is column-reverse, so the LOWER a thing sits on screen the lower it is
+   on the mountain. Each segment records the altitude at its top edge and at
+   its bottom edge, which lets stages (flat) and travel spacers (sloped, and
+   inverted relative to DOM order) share one lookup. ---- */
 var segs = [];
 function buildMap(){
   segs = [];
-  Array.prototype.forEach.call(doc.querySelector('main').children, function(el){
+  var kids = Array.prototype.slice.call(doc.querySelector('main').children);
+  kids.forEach(function(el){
     var top = el.offsetTop, h = el.offsetHeight;
     if(el.classList.contains('stage')){
-      var a = num(el,'data-alt',0), b = num(el,'data-body',100);
-      segs.push({top:top, h:h, a0:a, a1:a, b0:b, b1:b});
+      var a = num(el,'data-alt',0);
+      segs.push({top:top, h:h, aTop:a, aBot:a, el:el});
     } else if(el.classList.contains('travel')){
+      /* the spacer's top edge touches the HIGHER station */
       segs.push({ top:top, h:h,
-        a0:num(el,'data-a0',0), a1:num(el,'data-a1',0),
-        b0:num(el,'data-b0',100), b1:num(el,'data-b1',100) });
+                  aTop:num(el,'data-a1',0), aBot:num(el,'data-a0',0),
+                  el:el.__below });
     }
   });
+  segs.sort(function(a,b){ return a.top - b.top; });
 }
-function readAt(y){
-  if(!segs.length) return {alt:0, body:100};
+function segAt(y){
+  if(!segs.length) return null;
   var s = segs[0];
   for(var i=0;i<segs.length;i++){ if(y >= segs[i].top) s = segs[i]; else break; }
+  return s;
+}
+function readAt(y){
+  var s = segAt(y);
+  if(!s) return {alt:0, el:stageEls[0]};
   var t = Math.max(0, Math.min(1, (y - s.top)/Math.max(1, s.h)));
-  return { alt: s.a0 + (s.a1-s.a0)*t, body: s.b0 + (s.b1-s.b0)*t };
+  return { alt: s.aTop + (s.aBot - s.aTop)*t, el: s.el || stageEls[0] };
+}
+/* inverse lookup, so rotating the device keeps your place on the mountain */
+function yForAlt(alt){
+  for(var i=0;i<segs.length;i++){
+    var s = segs[i], hi = Math.max(s.aTop,s.aBot), lo = Math.min(s.aTop,s.aBot);
+    if(alt <= hi && alt >= lo){
+      var t = (s.aTop === s.aBot) ? 0.5 : (s.aTop - alt)/(s.aTop - s.aBot);
+      return s.top + t*s.h - window.innerHeight*0.5;
+    }
+  }
+  return doc.documentElement.scrollHeight;
 }
 
 /* ---- fixed sky ---- */
@@ -1602,67 +1690,24 @@ function drawSky(p){
   }
 }
 
-/* ---- route map: where Able is on the mountain ---- */
-var routeCv = doc.getElementById('route'), rg = routeCv ? routeCv.getContext('2d') : null;
-if(rg) rg.imageSmoothingEnabled = false;
-var RW = 52, RH = 72, RTOP = 8, RBASE = 64, routeBg = null;
-
-function buildRouteBg(){
-  var c = doc.createElement('canvas'); c.width=RW; c.height=RH;
-  var g = c.getContext('2d'); g.imageSmoothingEnabled=false;
-  vramp(g,0,0,RW,RH,['#241d33','#3b3a6e','#6a72b8']);
-  for(var x=0;x<RW;x++){
-    var t = Math.abs(x-26)/26;
-    var y = Math.round(RTOP-3 + (RBASE-RTOP+3)*Math.pow(t,0.9));
-    rect(g,x,y,1,RH-y,'#4d5764');
-    if(y < RTOP+6) rect(g,x,y,1,(RTOP+6)-y,'#d5dde5');
-  }
-  rect(g,0,RBASE,RW,1,'#2a2436');
-  rect(g,0,RBASE+1,RW,RH-RBASE-1,'#1e1b30');
-  /* a tick for every station */
-  stageEls.forEach(function(el){
-    var a = num(el,'data-alt',0);
-    var y = Math.round(RBASE - (a/MAX_ALT)*(RBASE-RTOP));
-    rect(g,0,y,3,1,'#66717f');
-  });
-  text(g,'6400',RW-17,1,'#8e93b8');
-  text(g,'0',1,RBASE-6,'#8e93b8');
-  return c;
-}
-function drawRoute(alt){
-  if(!rg) return;
-  if(!routeBg) routeBg = buildRouteBg();
-  rg.clearRect(0,0,RW,RH);
-  rg.drawImage(routeBg,0,0);
-  var y = Math.round(RBASE - Math.max(0,Math.min(1,alt/MAX_ALT))*(RBASE-RTOP));
-  for(var x=0;x<RW;x+=4) rect(rg,x,y,2,1,'#ffd257');
-  rect(rg,24,y-2,5,5,'#14101c');
-  rect(rg,25,y-1,3,3,'#ffd257');
-}
-
 /* ---- HUD ---- */
-var hudAlt = doc.getElementById('hud-alt'),  hudBody = doc.getElementById('hud-body');
-var hudName= doc.getElementById('hud-stage'), mAlt   = doc.getElementById('meter-alt');
-var mBody  = doc.getElementById('meter-body'), mBodyWrap = doc.getElementById('meter-body-wrap');
-var rootS  = doc.documentElement.style;
+var hudAlt  = doc.getElementById('hud-alt');
+var hudName = doc.getElementById('hud-stage');
+var mAlt    = doc.getElementById('meter-alt');
+var rootS   = doc.documentElement.style;
 
 function update(){
   var mid = window.scrollY + window.innerHeight*0.5;
   var r = readAt(mid);
-  var alt = r.alt, bod = r.body, p = Math.max(0, Math.min(1, alt/MAX_ALT));
+  var alt = r.alt, p = Math.max(0, Math.min(1, alt/MAX_ALT));
 
-  hudAlt.textContent  = Math.round(alt).toLocaleString('en-US') + ' FT';
-  hudBody.textContent = Math.round(bod) + '%';
-  mAlt.style.transform  = 'scaleX(' + p.toFixed(3) + ')';
-  mBody.style.transform = 'scaleX(' + (bod/100).toFixed(3) + ')';
+  hudAlt.textContent   = Math.round(alt).toLocaleString('en-US') + ' FT';
+  mAlt.style.transform = 'scaleX(' + p.toFixed(3) + ')';
 
-  var cur = stageEls[0];
-  for(var i=0;i<stageEls.length;i++) if(stageEls[i].offsetTop <= mid) cur = stageEls[i];
+  var cur = r.el || stageEls[0];
   hudName.textContent = cur.getAttribute('data-name') || '';
-  mBodyWrap.classList.toggle('healed', cur.getAttribute('data-heal') === '1');
 
   drawSky(p);
-  drawRoute(alt);
 
   /* clouds gather as you climb, then sink below you */
   var cop = alt < 1400 ? 0 : Math.min(0.85, (alt-1400)/2200);
@@ -1700,8 +1745,34 @@ function relayout(){
   sizeSky(); buildClouds(); buildTravel(); sizeScenes(); buildMap();
   lastSkyStep = -1; update();
 }
+
+/* The base of the mountain is the BOTTOM of the document, because the reader
+   climbs by scrolling up. */
+function jump(y){
+  var de = doc.documentElement, prev = de.style.scrollBehavior;
+  de.style.scrollBehavior = 'auto';
+  window.scrollTo(0, Math.max(0, y));
+  de.style.scrollBehavior = prev;
+}
+function toBase(){ jump(doc.documentElement.scrollHeight); }
+
+var userMoved = false;
+['wheel','touchstart','keydown'].forEach(function(ev){
+  window.addEventListener(ev, function(){ userMoved = true; }, {passive:true});
+});
+
 var rt;
-window.addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(relayout, 150); });
+window.addEventListener('resize', function(){
+  clearTimeout(rt);
+  /* remember the altitude, not the pixel offset, so rotating an iPad or the
+     iOS address bar collapsing does not lose the reader's place */
+  var held = readAt(window.scrollY + window.innerHeight*0.5).alt;
+  rt = setTimeout(function(){
+    relayout();
+    if(userMoved) jump(yForAlt(held)); else toBase();
+    update();
+  }, 150);
+});
 
 /* ---- observers ---- */
 var io = new IntersectionObserver(function(es){
@@ -1727,32 +1798,49 @@ function loop(ts){
     for(var i=0;i<scenes.length;i++) if(scenes[i].visible) paint(scenes[i], frame);
     for(var k=0;k<climbers.length;k++){
       var c = climbers[k];
-      if(c.cv.getBoundingClientRect().bottom < -40) continue;
+      if(c.cv.getBoundingClientRect().bottom < -40) continue;   /* offscreen above */
+      var r = c.cv.getBoundingClientRect();
+      if(r.top > window.innerHeight + 40) continue;
       c.g.clearRect(0,0,16,24);
-      spr(c.g, SPR.ableClimb, 2, 3 + ((frame>>1)&1));
+      spr(c.g, climbFrame(frame), 2, 3 + climbLift(frame));
     }
   }
   requestAnimationFrame(loop);
 }
 
-/* ---- CRT toggle ---- */
+/* ---- scanline overlay: the faint horizontal lines that make the page look
+   like an old TV. Off by default; the choice is remembered in this browser. ---- */
 var crtBtn = doc.getElementById('crt-toggle');
+var CRT_KEY = 'the-climb:scanlines';
+function syncCrt(){
+  crtBtn.textContent = 'SCANLINES: ' + (body.classList.contains('no-crt') ? 'OFF' : 'ON');
+}
+try{ if(localStorage.getItem(CRT_KEY) === 'on') body.classList.remove('no-crt'); }catch(e){}
 crtBtn.addEventListener('click', function(){
-  var off = body.classList.toggle('no-crt');
-  crtBtn.textContent = 'CRT: ' + (off ? 'OFF' : 'ON');
+  body.classList.toggle('no-crt');
+  try{ localStorage.setItem(CRT_KEY, body.classList.contains('no-crt') ? 'off' : 'on'); }catch(e){}
+  syncCrt();
 });
+syncCrt();
 
 /* ---- go ---- */
+if('scrollRestoration' in history) history.scrollRestoration = 'manual';
 relayout();
+toBase();
 scenes.forEach(function(s){ paint(s, 0); });
-climbers.forEach(function(c){ spr(c.g, SPR.ableClimb, 2, 3); });
+climbers.forEach(function(c){ spr(c.g, climbFrame(0), 2, 3 + climbLift(0)); });
 if(reduce){
   scenes.forEach(function(s){ s.visible = true; paint(s, 3); });
   stageEls.forEach(function(el){ el.classList.add('seen'); });
 } else {
   requestAnimationFrame(loop);
 }
-if(doc.fonts && doc.fonts.ready) doc.fonts.ready.then(function(){ sizeScenes(); buildMap(); update(); });
+if(doc.fonts && doc.fonts.ready) doc.fonts.ready.then(function(){
+  sizeScenes(); buildMap();
+  if(!userMoved) toBase();          /* web fonts change the layout height */
+  update();
+});
+window.addEventListener('load', function(){ if(!userMoved) toBase(); update(); });
 
 })();
 </script>
