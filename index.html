@@ -1727,7 +1727,29 @@ function onScroll(){
   if(doc.hidden) run(); else requestAnimationFrame(run);
 }
 window.addEventListener('scroll', onScroll, {passive:true});
-doc.addEventListener('visibilitychange', function(){ if(!doc.hidden){ lastSkyStep=-1; update(); } });
+
+/* ---- animation runs only while the reader is actually scrolling ----
+   Climbing sprites (and every other bit of canvas motion — rain, the
+   falcon, lightning, blinking villagers) only cost anything while a
+   requestAnimationFrame loop is scheduled. Rather than let that loop run
+   forever, it starts on scroll and stops itself a moment after scrolling
+   ends, so a page sitting idle — or scrolled off past a scene — burns no
+   CPU at all between frames. */
+var scrolling = false, scrollIdleT = null;
+function markScrolling(){
+  scrolling = true;
+  startLoop();
+  clearTimeout(scrollIdleT);
+  scrollIdleT = setTimeout(function(){ scrolling = false; }, 220);
+}
+window.addEventListener('scroll', markScrolling, {passive:true});
+doc.addEventListener('visibilitychange', function(){
+  if(doc.hidden){
+    scrolling = false; clearTimeout(scrollIdleT);   /* let the loop wind down at once */
+  } else {
+    lastSkyStep = -1; update();
+  }
+});
 
 function relayout(){
   sizeSky(); buildClouds(); buildTravel(); sizeScenes(); buildMap();
@@ -1776,24 +1798,33 @@ var vio = new IntersectionObserver(function(es){
 }, { rootMargin:'160px 0px 160px 0px' });
 scenes.forEach(function(s){ vio.observe(s.cv.parentNode); });
 
-/* ---- chunky clock: 8 steps a second, visible canvases only ---- */
-var frame = 0, acc = 0, last = 0;
-function loop(ts){
+/* ---- chunky clock: 8 steps a second, only while scrolling, only for
+   what's actually on screen ---- */
+var frame = 0, acc = 0, last = 0, looping = false;
+function paintFrame(){
+  acc = 0; frame++;
+  for(var i=0;i<scenes.length;i++) if(scenes[i].visible) paint(scenes[i], frame);
+  for(var k=0;k<climbers.length;k++){
+    var c = climbers[k], r = c.cv.getBoundingClientRect();
+    if(r.bottom < -40 || r.top > window.innerHeight + 40) continue;   /* offscreen */
+    c.g.clearRect(0,0,16,24);
+    spr(c.g, climbFrame(frame), 2, 3 + climbLift(frame));
+  }
+}
+function tick(ts){
   if(!last) last = ts;
   acc += ts - last; last = ts;
-  if(acc >= 125){
-    acc = 0; frame++;
-    for(var i=0;i<scenes.length;i++) if(scenes[i].visible) paint(scenes[i], frame);
-    for(var k=0;k<climbers.length;k++){
-      var c = climbers[k];
-      if(c.cv.getBoundingClientRect().bottom < -40) continue;   /* offscreen above */
-      var r = c.cv.getBoundingClientRect();
-      if(r.top > window.innerHeight + 40) continue;
-      c.g.clearRect(0,0,16,24);
-      spr(c.g, climbFrame(frame), 2, 3 + climbLift(frame));
-    }
+  if(acc >= 125) paintFrame();
+  if(scrolling){
+    requestAnimationFrame(tick);
+  } else {
+    looping = false; last = 0;   /* stop scheduling — no idle rAF churn */
   }
-  requestAnimationFrame(loop);
+}
+function startLoop(){
+  if(looping || reduce) return;
+  looping = true; last = 0;
+  requestAnimationFrame(tick);
 }
 
 /* ---- go ---- */
@@ -1805,9 +1836,9 @@ climbers.forEach(function(c){ spr(c.g, climbFrame(0), 2, 3 + climbLift(0)); });
 if(reduce){
   scenes.forEach(function(s){ s.visible = true; paint(s, 3); });
   stageEls.forEach(function(el){ el.classList.add('seen'); });
-} else {
-  requestAnimationFrame(loop);
 }
+/* Otherwise: draw once, then stay idle. The loop only starts once the
+   reader actually scrolls (see markScrolling above). */
 if(doc.fonts && doc.fonts.ready) doc.fonts.ready.then(function(){
   sizeScenes(); buildMap();
   if(!userMoved) toBase();          /* web fonts change the layout height */
