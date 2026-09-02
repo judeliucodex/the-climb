@@ -83,7 +83,6 @@ img, canvas{ image-rendering: pixelated; image-rendering: crisp-edges; }
   background:repeating-linear-gradient(to bottom,
     rgba(0,0,0,.15) 0 1px, rgba(0,0,0,0) 1px 3px);
 }
-body.no-crt #crt{ display:none; }
 
 /* ---------- HUD ----------
    One number, one bar, one chapter name. Nothing else. */
@@ -125,16 +124,6 @@ body.no-crt #crt{ display:none; }
   line-height:1.7; word-break:break-word;
 }
 #hud .hint{ display:block; margin-top:calc(var(--u)*2); color:var(--zone-accent); font-size:calc(var(--u)*1.1); }
-
-#crt-toggle{
-  position:fixed; z-index:81;
-  right:calc(var(--u)*4); top:calc(var(--u)*4);
-  font-family:"Press Start 2P", monospace; font-size:calc(var(--u)*1.5);
-  color:var(--paper); background:var(--ink); border:0;
-  padding:calc(var(--u)*2); cursor:pointer;
-  box-shadow:0 0 0 var(--u) var(--ink), 0 0 0 calc(var(--u)*2) var(--zone-edge);
-}
-#crt-toggle:hover{ color:var(--gold); }
 
 /* Phones and tablets (portrait AND landscape): slim top bar. Below 1280px the
    centred content is wide enough to run underneath a floating sidebar HUD. */
@@ -433,7 +422,7 @@ footer strong{ color:var(--paper); }
 }
 </style>
 </head>
-<body class="no-js no-crt">
+<body class="no-js">
 
 <div id="sky-fallback"></div>
 <canvas id="sky" aria-hidden="true"></canvas>
@@ -451,7 +440,6 @@ footer strong{ color:var(--paper); }
   <span class="hint">&#9650; SCROLL UP TO CLIMB</span>
 </header>
 
-<button id="crt-toggle" type="button">SCANLINES: OFF</button>
 
 <main>
 
@@ -1807,21 +1795,6 @@ function loop(ts){
   }
   requestAnimationFrame(loop);
 }
-
-/* ---- scanline overlay: the faint horizontal lines that make the page look
-   like an old TV. Off by default; the choice is remembered in this browser. ---- */
-var crtBtn = doc.getElementById('crt-toggle');
-var CRT_KEY = 'the-climb:scanlines';
-function syncCrt(){
-  crtBtn.textContent = 'SCANLINES: ' + (body.classList.contains('no-crt') ? 'OFF' : 'ON');
-}
-try{ if(localStorage.getItem(CRT_KEY) === 'on') body.classList.remove('no-crt'); }catch(e){}
-crtBtn.addEventListener('click', function(){
-  body.classList.toggle('no-crt');
-  try{ localStorage.setItem(CRT_KEY, body.classList.contains('no-crt') ? 'off' : 'on'); }catch(e){}
-  syncCrt();
-});
-syncCrt();
 
 /* ---- go ---- */
 if('scrollRestoration' in history) history.scrollRestoration = 'manual';

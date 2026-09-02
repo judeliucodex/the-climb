@@ -55,8 +55,8 @@ rendered `offsetTop`.
 - Sprite art is height-capped as well as width-capped (`byHeight` in
   `sizeScenes`), or a landscape phone makes the title screen three screens tall.
   The TV gets a tighter budget than the story panels so the title fits one view.
-- Scanlines (the faint CRT lines) are **off by default** and remembered per
-  browser in `localStorage` under `the-climb:scanlines`.
+- Scanlines (the faint CRT lines, `#crt`) are always on — permanent art
+  direction, not a setting. There is no toggle and no `localStorage` for it.
 
 ## Rules specific to this project
 
